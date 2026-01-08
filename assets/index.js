@@ -635,4 +635,248 @@ if ($('#scgs-classes-root').length) {
 }
 
 
+//---------------------------------------------------------SUBJECT CRITERIA PAGE (CRUD)---------------------------------------------------------//
+/**
+ * ======================================================
+ * SUBJECT CRITERIA PAGE
+ * ======================================================
+ */
+if ($('#scgs-subject-criteria-root').length) {
+
+    let editingId = null;
+    const root = $('#scgs-subject-criteria-root');
+
+    root.html(`
+        <p>
+            <select id="crit-subject"></select>
+            <input type="text" id="crit-grade" placeholder="Grade (e.g. Grade 5)" />
+            <label><input type="checkbox" id="crit-assess" checked /> Has Assessment</label>
+        </p>
+        <p>
+            <input type="number" id="crit-weekly" placeholder="Weekly %" />
+            <input type="number" id="crit-assessment" placeholder="Assessment %" />
+            <input type="number" id="crit-final" placeholder="Final %" />
+            <select id="crit-credit">
+                <option value="credit">Credit</option>
+                <option value="non-credit">Non-Credit</option>
+            </select>
+            <button class="button button-primary" id="crit-save">Save</button>
+        </p>
+        <hr/>
+        <div id="criteria-table"></div>
+    `);
+
+    function loadSubjects() {
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_get_subjects',
+            nonce: SCGS_DATA.nonce
+        }, res => {
+            if (!res || !res.success) return;
+            let opt = '<option value="">Select Subject</option>';
+            res.data.forEach(s => opt += `<option value="${s.id}">${s.name}</option>`);
+            $('#crit-subject').html(opt);
+        });
+    }
+
+    function loadCriteria() {
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_get_subject_criteria',
+            nonce: SCGS_DATA.nonce
+        }, res => {
+            if (!res || !res.success) {
+                $('#criteria-table').html('<p>No criteria found</p>');
+                return;
+            }
+
+            let html = `
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Grade</th>
+                            <th>Weekly</th>
+                            <th>Assessment</th>
+                            <th>Final</th>
+                            <th>Credit</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead><tbody>
+            `;
+
+            res.data.forEach(r => {
+                html += `
+                    <tr>
+                        <td>${r.subject_name}</td>
+                        <td>${r.grade_level}</td>
+                        <td>${r.weekly_weight}%</td>
+                        <td>${r.assessment_weight}%</td>
+                        <td>${r.final_weight}%</td>
+                        <td>${r.credit_type}</td>
+                        <td>
+                            <button class="button crit-edit"
+                                data-id="${r.id}"
+                                data-subject="${r.subject_id}"
+                                data-grade="${r.grade_level}"
+                                data-weekly="${r.weekly_weight}"
+                                data-assessment="${r.assessment_weight}"
+                                data-final="${r.final_weight}"
+                                data-credit="${r.credit_type}"
+                                data-has="${r.has_assessment}">
+                                Edit
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            $('#criteria-table').html(html);
+        });
+    }
+
+    loadSubjects();
+    loadCriteria();
+
+    $('#crit-save').on('click', function () {
+        const payload = {
+            action: 'scgs_save_subject_criteria',
+            nonce: SCGS_DATA.nonce,
+            id: editingId,
+            subject_id: $('#crit-subject').val(),
+            grade_level: $('#crit-grade').val(),
+            weekly_weight: $('#crit-weekly').val(),
+            assessment_weight: $('#crit-assessment').val(),
+            final_weight: $('#crit-final').val(),
+            credit_type: $('#crit-credit').val(),
+            has_assessment: $('#crit-assess').is(':checked') ? 1 : 0
+        };
+
+        $.post(SCGS_DATA.ajax_url, payload, res => {
+            if (!res || !res.success) {
+                alert(res?.data?.message || 'Save failed');
+                return;
+            }
+            editingId = null;
+            loadCriteria();
+        });
+    });
+
+    $(document).on('click', '.crit-edit', function () {
+        editingId = $(this).data('id');
+        $('#crit-subject').val($(this).data('subject'));
+        $('#crit-grade').val($(this).data('grade'));
+        $('#crit-weekly').val($(this).data('weekly'));
+        $('#crit-assessment').val($(this).data('assessment'));
+        $('#crit-final').val($(this).data('final'));
+        $('#crit-credit').val($(this).data('credit'));
+        $('#crit-assess').prop('checked', $(this).data('has') == 1);
+    });
+}
+
+
+
+    /**
+ * ======================================================
+ * ACADEMIC YEARS PAGE (CRUD)
+ * ======================================================
+ */
+if ($('#scgs-academic-years-root').length) {
+
+    console.log('Academic Years page detected');
+
+    const root = $('#scgs-academic-years-root');
+
+    root.html(`
+        <p>
+            <input type="text" id="ay-name" placeholder="Academic Year (e.g. 2024–2025)" />
+            <button class="button button-primary" id="ay-add">Add</button>
+        </p>
+        <hr/>
+        <div id="ay-table"></div>
+    `);
+
+    function loadYears() {
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_get_academic_years',
+            nonce: SCGS_DATA.nonce
+        }, function (res) {
+
+            if (!res || !res.success) {
+                $('#ay-table').html('<p>Error loading academic years</p>');
+                return;
+            }
+
+            let html = `
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            if (res.data.length === 0) {
+                html += `<tr><td colspan="3">No academic years found</td></tr>`;
+            } else {
+                res.data.forEach(y => {
+                    html += `
+                        <tr>
+                            <td>${y.name}</td>
+                            <td>${y.is_active == 1 ? 'Active' : ''}</td>
+                            <td>
+                                ${y.is_active == 0
+                                    ? `<button class="button ay-activate" data-id="${y.id}">Set Active</button>`
+                                    : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            html += '</tbody></table>';
+            $('#ay-table').html(html);
+        });
+    }
+
+    loadYears();
+
+    $('#ay-add').on('click', function () {
+
+        const name = $('#ay-name').val().trim();
+        if (!name) {
+            alert('Please enter academic year name');
+            return;
+        }
+
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_add_academic_year',
+            nonce: SCGS_DATA.nonce,
+            name: name
+        }, function (res) {
+
+            if (!res || !res.success) {
+                alert(res?.data?.message || 'Failed to add academic year');
+                return;
+            }
+
+            $('#ay-name').val('');
+            loadYears();
+        });
+    });
+
+    $(document).on('click', '.ay-activate', function () {
+
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_set_active_academic_year',
+            nonce: SCGS_DATA.nonce,
+            id: $(this).data('id')
+        }, function () {
+            loadYears();
+        });
+    });
+}
+
 });
