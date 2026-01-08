@@ -101,26 +101,51 @@ function scgs_install_tables() {
     /**
      * Students
      */
-    $table_students = $wpdb->prefix . 'scgs_students';
+   /**
+ * Students (FINAL SCHEMA)
+ */
+$table_students = $wpdb->prefix . 'scgs_students';
 
-    $sql_students = "
-    CREATE TABLE $table_students (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        student_code VARCHAR(50) NOT NULL,
-        first_name VARCHAR(100) NOT NULL,
-        last_name VARCHAR(100) NOT NULL,
-        class_id BIGINT UNSIGNED NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        UNIQUE KEY student_code (student_code),
-        KEY class_id (class_id)
-    ) $charset_collate;
-    ";
+$sql_students = "
+CREATE TABLE $table_students (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    student_code VARCHAR(50) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    nationality VARCHAR(50) NULL,
+    date_of_birth DATE NULL,
+    student_email VARCHAR(100) NULL,
+    class_id BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY student_code (student_code),
+    UNIQUE KEY student_email (student_email),
+    KEY class_id (class_id)
+) $charset_collate;
+";
+
+/**
+ * Student Parent Emails
+ */
+$table_parents = $wpdb->prefix . 'scgs_student_parents';
+
+$sql_parents = "
+CREATE TABLE $table_parents (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    student_id BIGINT UNSIGNED NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY student_parent_email (student_id, email),
+    KEY student_id (student_id)
+) $charset_collate;
+";
 
     dbDelta( $sql_subject_groups );
     dbDelta( $sql_subjects );
     dbDelta( $sql_classes );
     dbDelta( $sql_students );
+    dbDelta( $sql_parents );
     dbDelta($sql_academic_years);
     dbDelta( $sql_criteria );
 

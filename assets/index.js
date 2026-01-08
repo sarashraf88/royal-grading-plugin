@@ -160,219 +160,100 @@ jQuery(document).ready(function ($) {
 
     }
 
-    /**
-     * ======================================================
-     * STUDENTS PAGE (ADD + EDIT + DELETE)
-     * ======================================================
-     */
-    if ($('#scgs-students-root').length) {
-
-        let editingStudentId = null;
-
-        const root = $('#scgs-students-root');
-
-        root.html(`
-            <h2>Add / Edit Student</h2>
-            <p>
-                <input type="text" id="stu-code" placeholder="Student Code" />
-                <input type="text" id="stu-first" placeholder="First Name" />
-                <input type="text" id="stu-last" placeholder="Last Name" />
-                <select id="stu-class"></select>
-                <button type="button" class="button button-primary" id="stu-save">Add</button>
-            </p>
-            <hr/>
-            <div id="students-table"></div>
-        `);
-
-        function loadClasses() {
-            $.post(SCGS_DATA.ajax_url, {
-                action: 'scgs_get_classes',
-                nonce: SCGS_DATA.nonce
-            }, function (res) {
-                if (!res || !res.success) return;
-
-                let opts = '<option value="">Select Class</option>';
-                res.data.forEach(c => {
-                    opts += `<option value="${c.id}">${c.name}</option>`;
-                });
-                $('#stu-class').html(opts);
-            });
-        }
-
-        function loadStudents() {
-            $.post(SCGS_DATA.ajax_url, {
-                action: 'scgs_get_students',
-                nonce: SCGS_DATA.nonce
-            }, function (res) {
-
-                if (!res || !res.success) {
-                    $('#students-table').html('<p>Error loading students</p>');
-                    return;
-                }
-
-                let html = `
-                    <table class="widefat striped">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Code</th>
-                                <th>Name</th>
-                                <th>Class</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                if (res.data.length === 0) {
-                    html += `<tr><td colspan="5">No students found</td></tr>`;
-                } else {
-                    res.data.forEach(s => {
-                        html += `
-                            <tr>
-                                <td>${s.id}</td>
-                                <td>${s.student_code}</td>
-                                <td>${s.first_name} ${s.last_name}</td>
-                                <td>${s.class_name ?? '-'}</td>
-                                <td>
-                                    <button type="button"
-                                        class="button stu-edit"
-                                        data-id="${s.id}"
-                                        data-code="${s.student_code}"
-                                        data-first="${s.first_name}"
-                                        data-last="${s.last_name}"
-                                        data-class="${s.class_id}">
-                                        Edit
-                                    </button>
-                                    <button type="button"
-                                        class="button stu-delete"
-                                        data-id="${s.id}">
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                }
-
-                html += '</tbody></table>';
-                $('#students-table').html(html);
-            });
-        }
-
-        loadClasses();
-        loadStudents();
-
-        $('#stu-save').on('click', function () {
-
-            const actionName = editingStudentId
-                ? 'scgs_update_student'
-                : 'scgs_add_student';
-
-            const payload = {
-                action: actionName,
-                nonce: SCGS_DATA.nonce,
-                student_code: $('#stu-code').val(),
-                first_name: $('#stu-first').val(),
-                last_name: $('#stu-last').val(),
-                class_id: $('#stu-class').val()
-            };
-
-            if (editingStudentId) {
-                payload.id = editingStudentId;
-            }
-
-            $.post(SCGS_DATA.ajax_url, payload, function (res) {
-                if (!res || !res.success) {
-                    alert(res?.data?.message || 'Operation failed');
-                    return;
-                }
-
-                editingStudentId = null;
-                $('#stu-save').text('Add');
-                $('#stu-code').val('');
-                $('#stu-first').val('');
-                $('#stu-last').val('');
-                loadStudents();
-            });
-        });
-
-        $(document).on('click', '.stu-edit', function () {
-            editingStudentId = $(this).data('id');
-
-            $('#stu-code').val($(this).data('code'));
-            $('#stu-first').val($(this).data('first'));
-            $('#stu-last').val($(this).data('last'));
-            $('#stu-class').val($(this).data('class'));
-
-            $('#stu-save').text('Update');
-        });
-
-        $(document).on('click', '.stu-delete', function () {
-            if (!confirm('Delete this student?')) return;
-
-            $.post(SCGS_DATA.ajax_url, {
-                action: 'scgs_delete_student',
-                nonce: SCGS_DATA.nonce,
-                id: $(this).data('id')
-            }, loadStudents);
-        });
-    }
-    
 /**
  * ======================================================
- * SUBJECTS PAGE
+ * STUDENTS PAGE (EXTENDED)
  * ======================================================
  */
-/**
- * ======================================================
- * SUBJECTS PAGE (CRUD)
- * ======================================================
- */
-if ($('#scgs-subjects-root').length) {
+if ($('#scgs-students-root').length) {
 
-    let editingSubjectId = null;
+    let editingStudentId = null;
+    let parentEmails = [];
 
-    const root = $('#scgs-subjects-root');
+    const root = $('#scgs-students-root');
 
     root.html(`
-        <h2>Add / Edit Subject</h2>
+        <h2>Add / Edit Student</h2>
+
         <p>
-            <input type="text" id="sub-name" placeholder="Subject Name" />
-            <input type="number" id="sub-score" placeholder="Max Score" />
-            <select id="sub-group"></select>
-            <button type="button" class="button button-primary" id="sub-save">
-                Add
-            </button>
+            <input type="text" id="st-code" placeholder="Student Code" />
+            <input type="text" id="st-first" placeholder="First Name" />
+            <input type="text" id="st-last" placeholder="Last Name" />
+            <input type="text" id="st-nationality" placeholder="Nationality" />
         </p>
+
+        <p>
+            <input type="date" id="st-dob" />
+            <input type="email" id="st-email" placeholder="Student Email" />
+            <select id="st-class"></select>
+        </p>
+
+        <h4>Parent Emails</h4>
+        <p>
+            <input type="email" id="parent-email-input" placeholder="Parent Email" />
+            <button class="button" id="add-parent-email">Add</button>
+        </p>
+        <ul id="parent-email-list"></ul>
+
+        <p>
+            <button class="button button-primary" id="st-save">Save</button>
+        </p>
+
         <hr/>
-        <div id="subjects-table"></div>
+        <div id="students-table"></div>
     `);
 
-    function loadGroups() {
+    function renderParentEmails() {
+        const list = $('#parent-email-list');
+        list.empty();
+        parentEmails.forEach((email, index) => {
+            list.append(`
+                <li>
+                    ${email}
+                    <button class="button link-delete remove-parent" data-index="${index}">×</button>
+                </li>
+            `);
+        });
+    }
+
+    $('#add-parent-email').on('click', function (e) {
+        e.preventDefault();
+        const email = $('#parent-email-input').val().trim();
+        if (email && !parentEmails.includes(email)) {
+            parentEmails.push(email);
+            $('#parent-email-input').val('');
+            renderParentEmails();
+        }
+    });
+
+    $(document).on('click', '.remove-parent', function () {
+        parentEmails.splice($(this).data('index'), 1);
+        renderParentEmails();
+    });
+
+    function loadClasses() {
         $.post(SCGS_DATA.ajax_url, {
-            action: 'scgs_get_subject_groups',
+            action: 'scgs_get_classes',
             nonce: SCGS_DATA.nonce
         }, function (res) {
             if (!res || !res.success) return;
 
-            let options = '<option value="">Select Group</option>';
-            res.data.forEach(g => {
-                options += `<option value="${g.id}">${g.name}</option>`;
+            let opts = '<option value="">Select Class</option>';
+            res.data.forEach(c => {
+                opts += `<option value="${c.id}">${c.name}</option>`;
             });
-
-            $('#sub-group').html(options);
+            $('#st-class').html(opts);
         });
     }
 
-    function loadSubjects() {
+    function loadStudents() {
         $.post(SCGS_DATA.ajax_url, {
-            action: 'scgs_get_subjects',
+            action: 'scgs_get_students',
             nonce: SCGS_DATA.nonce
         }, function (res) {
 
             if (!res || !res.success) {
-                $('#subjects-table').html('<p>Error loading subjects</p>');
+                $('#students-table').html('<p>Error loading students</p>');
                 return;
             }
 
@@ -381,9 +262,9 @@ if ($('#scgs-subjects-root').length) {
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Code</th>
                             <th>Name</th>
-                            <th>Max Score</th>
-                            <th>Group</th>
+                            <th>Class</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -391,27 +272,18 @@ if ($('#scgs-subjects-root').length) {
             `;
 
             if (res.data.length === 0) {
-                html += `<tr><td colspan="5">No subjects found</td></tr>`;
+                html += `<tr><td colspan="5">No students found</td></tr>`;
             } else {
                 res.data.forEach(s => {
                     html += `
                         <tr>
                             <td>${s.id}</td>
-                            <td>${s.name}</td>
-                            <td>${s.max_score}</td>
-                            <td>${s.group_name ?? '-'}</td>
+                            <td>${s.student_code}</td>
+                            <td>${s.first_name} ${s.last_name}</td>
+                            <td>${s.class_name ?? '-'}</td>
                             <td>
-                                <button class="button sub-edit"
-                                    data-id="${s.id}"
-                                    data-name="${s.name}"
-                                    data-score="${s.max_score}"
-                                    data-group="${s.subject_group_id}">
-                                    Edit
-                                </button>
-                                <button class="button sub-delete"
-                                    data-id="${s.id}">
-                                    Delete
-                                </button>
+                                <button class="button stu-edit" data-id="${s.id}">Edit</button>
+                                <button class="button stu-delete" data-id="${s.id}">Delete</button>
                             </td>
                         </tr>
                     `;
@@ -419,223 +291,87 @@ if ($('#scgs-subjects-root').length) {
             }
 
             html += '</tbody></table>';
-            $('#subjects-table').html(html);
+            $('#students-table').html(html);
         });
-    }
-
-    loadGroups();
-    loadSubjects();
-
-    $('#sub-save').on('click', function () {
-
-        const isEdit = editingSubjectId !== null;
-
-        const payload = {
-            action: isEdit
-                ? 'scgs_update_subject'
-                : 'scgs_add_subject',
-            nonce: SCGS_DATA.nonce,
-            name: $('#sub-name').val(),
-            max_score: $('#sub-score').val(),
-            subject_group_id: $('#sub-group').val()
-        };
-
-        if (isEdit) {
-            payload.id = editingSubjectId;
-        }
-
-        $.post(SCGS_DATA.ajax_url, payload, function (res) {
-            if (!res || !res.success) {
-                alert(res?.data?.message || 'Operation failed');
-                return;
-            }
-
-            editingSubjectId = null;
-            $('#sub-save').text('Add');
-            $('#sub-name').val('');
-            $('#sub-score').val('');
-            $('#sub-group').val('');
-
-            loadSubjects();
-        });
-    });
-
-    $(document).on('click', '.sub-edit', function () {
-
-        editingSubjectId = $(this).data('id');
-
-        $('#sub-name').val($(this).data('name'));
-        $('#sub-score').val($(this).data('score'));
-        $('#sub-group').val($(this).data('group'));
-
-        $('#sub-save').text('Update');
-    });
-
-    $(document).on('click', '.sub-delete', function () {
-        if (!confirm('Delete this subject?')) return;
-
-        $.post(SCGS_DATA.ajax_url, {
-            action: 'scgs_delete_subject',
-            nonce: SCGS_DATA.nonce,
-            id: $(this).data('id')
-        }, loadSubjects);
-    });
-}
-/**
- * ======================================================
- * CLASSES PAGE
- * ======================================================
- */
-if ($('#scgs-classes-root').length) {
-
-    console.log('CLASSES PAGE DETECTED');
-    let editingClassId = null;
-    const root = $('#scgs-classes-root');
-
-    root.html(`
-        <h2>Add Class</h2>
-        <p>
-            <input type="text" id="class-name" placeholder="Class Name (e.g. 5A)" />
-            <input type="text" id="class-grade" placeholder="Grade Level (e.g. Grade 5)" />
-            <input type="text" id="class-year" placeholder="Academic Year (e.g. 2025–2026)" />
-            <button type="button" class="button button-primary" id="class-add">Add</button>
-        </p>
-        <hr/>
-        <div id="classes-table"></div>
-    `);
-
-    function loadClasses() {
-        $.post(
-            SCGS_DATA.ajax_url,
-            {
-                action: 'scgs_get_classes',
-                nonce: SCGS_DATA.nonce
-            },
-            function (res) {
-
-                if (!res || !res.success) {
-                    $('#classes-table').html('<p>Error loading classes</p>');
-                    return;
-                }
-
-                let html = `
-                    <table class="widefat striped">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Grade</th>
-                                <th>Academic Year</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                if (res.data.length === 0) {
-                    html += `<tr><td colspan="5">No classes found</td></tr>`;
-                } else {
-                    res.data.forEach(c => {
-                        html += `
-                            <tr>
-                                <td>${c.id}</td>
-                                <td>${c.name}</td>
-                                <td>${c.grade_level}</td>
-                                <td>${c.academic_year}</td>
-                                <td>
-                                    <button class="button class-edit"
-                                        data-id="${c.id}"
-                                        data-name="${c.name}"
-                                        data-grade="${c.grade_level}"
-                                        data-year="${c.academic_year}">
-                                        Edit
-                                    </button>
-
-                                    <button class="button class-delete"
-                                        data-id="${c.id}">
-                                        Delete
-                                    </button>
-
-                                </td>
-                            </tr>
-                        `;
-                    });
-                }
-
-                html += '</tbody></table>';
-                $('#classes-table').html(html);
-            }
-        );
     }
 
     loadClasses();
+    loadStudents();
 
-            $('#class-add').off('click').on('click', function () {
+    $('#st-save').on('click', function () {
 
-                const isEdit = editingClassId !== null;
+        const payload = {
+            action: 'scgs_save_student',
+            nonce: SCGS_DATA.nonce,
+            id: editingStudentId,
+            student_code: $('#st-code').val(),
+            first_name: $('#st-first').val(),
+            last_name: $('#st-last').val(),
+            nationality: $('#st-nationality').val(),
+            date_of_birth: $('#st-dob').val(),
+            student_email: $('#st-email').val(),
+            class_id: $('#st-class').val(),
+            parent_emails: parentEmails
+        };
 
-                const payload = {
-                    action: isEdit
-                        ? 'scgs_update_class'
-                        : 'scgs_add_class',
-                    nonce: SCGS_DATA.nonce,
-                    name: $('#class-name').val(),
-                    grade_level: $('#class-grade').val(),
-                    academic_year: $('#class-year').val()
-                };
+        $.post(SCGS_DATA.ajax_url, payload, function (res) {
 
-                if (isEdit) {
-                    payload.id = editingClassId;
-                }
+            if (!res || !res.success) {
+                alert(res?.data?.message || 'Save failed');
+                return;
+            }
 
-                $.post(SCGS_DATA.ajax_url, payload, function (res) {
+            editingStudentId = null;
+            parentEmails = [];
+            $('input').val('');
+            $('#parent-email-list').empty();
 
-                    if (!res || !res.success) {
-                        alert(res?.data?.message || 'Operation failed');
-                        return;
-                    }
-
-                    // reset state
-                    editingClassId = null;
-                    $('#class-add').text('Add');
-                    $('#class-name').val('');
-                    $('#class-grade').val('');
-                    $('#class-year').val('');
-
-                    loadClasses();
-                });
-            });
-
-
-    $(document).on('click', '.class-delete', function () {
-        if (!confirm('Delete this class?')) return;
-
-        $.post(
-            SCGS_DATA.ajax_url,
-            {
-                action: 'scgs_delete_class',
-                nonce: SCGS_DATA.nonce,
-                id: $(this).data('id')
-            },
-            loadClasses
-        );
+            loadStudents();
+        });
     });
 
-                $(document).on('click', '.class-edit', function () {
+    $(document).on('click', '.stu-edit', function () {
 
-                editingClassId = $(this).data('id');
+        const id = $(this).data('id');
 
-                $('#class-name').val($(this).data('name'));
-                $('#class-grade').val($(this).data('grade'));
-                $('#class-year').val($(this).data('year'));
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_get_student',
+            nonce: SCGS_DATA.nonce,
+            id: id
+        }, function (res) {
 
-                $('#class-add').text('Update');
-});
+            if (!res || !res.success) return;
 
+            const s = res.data;
+
+            editingStudentId = s.id;
+            parentEmails = s.parent_emails || [];
+
+            $('#st-code').val(s.student_code);
+            $('#st-first').val(s.first_name);
+            $('#st-last').val(s.last_name);
+            $('#st-nationality').val(s.nationality);
+            $('#st-dob').val(s.date_of_birth);
+            $('#st-email').val(s.student_email);
+            $('#st-class').val(s.class_id);
+
+            renderParentEmails();
+        });
+    });
+
+    $(document).on('click', '.stu-delete', function () {
+        if (!confirm('Delete this student?')) return;
+
+        $.post(SCGS_DATA.ajax_url, {
+            action: 'scgs_delete_student',
+            nonce: SCGS_DATA.nonce,
+            id: $(this).data('id')
+        }, loadStudents);
+    });
 }
 
 
-//---------------------------------------------------------SUBJECT CRITERIA PAGE (CRUD)---------------------------------------------------------//
+
 /**
  * ======================================================
  * SUBJECT CRITERIA PAGE
