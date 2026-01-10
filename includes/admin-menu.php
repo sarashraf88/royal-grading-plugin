@@ -97,6 +97,6 @@ function scgs_subject_criteria_page() {
      echo '<div class="wrap"><h1>Subject Criteria</h1><div id="scgs-subject-criteria-root"></div></div>';
 }
 function scgs_academic_years_page() {
-      echo '<div class="wrap"><h1>Academic Years</h1><div id="scgs-academic-years-root"></div></div>';
+      echo '<div class="wrap"><h1>Academic Years</h1><div id="scgs-academic-year-root"></div></div>';
  }
 

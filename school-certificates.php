@@ -35,19 +35,29 @@ add_action( 'admin_enqueue_scripts', function () {
     );
 
     wp_enqueue_script(
-        'royal-admin-js',
-        plugin_dir_url( __FILE__ ) . 'assets/index.js',
-        [ 'jquery' ],
-        '1.0.0',
-        true
-    );
+    'royal-admin-js',
+    plugin_dir_url(__FILE__) . 'assets/js/admin.js',
+    ['jquery'],
+    '1.0.0',
+    true
+);
 
-    wp_localize_script(
-        'royal-admin-js',
-        'SCGS_DATA',
-        [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'scgs_nonce' ),
+
+wp_localize_script(
+    'royal-admin-js',
+    'royalPlugin',
+    [
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce'    => wp_create_nonce('scgs_nonce'),
+        'modules'  => [
+            'subjectGroups'  => plugin_dir_url(__FILE__) . 'assets/js/subject-groups.js',
+            'subjects'       => plugin_dir_url(__FILE__) . 'assets/js/subjects.js',
+            'classes'        => plugin_dir_url(__FILE__) . 'assets/js/classes.js',
+            'students'       => plugin_dir_url(__FILE__) . 'assets/js/students.js',
+            'subjectCriteria'=> plugin_dir_url(__FILE__) . 'assets/js/subject-criteria.js',
+            'academicYear'   => plugin_dir_url(__FILE__) . 'assets/js/academic-year.js',
         ]
-    );
+    ]
+);
+
 });
