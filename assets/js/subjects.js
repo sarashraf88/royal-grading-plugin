@@ -11,6 +11,8 @@ jQuery(function ($) {
     }
 
     console.log('Subjects module loaded');
+    let editingSubjectId = null;
+
 
     // --------------------------------------------------
     // Render base UI
@@ -77,12 +79,14 @@ jQuery(function ($) {
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Subject</th>
-                                <th>Max Score</th>
-                                <th>Group</th>
+                                    <th>Subject</th>
+                                    <th>Max Score</th>
+                                    <th>Group</th>
+                                    <th>Action</th>
+
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody> 
                 `;
 
                 if (res.data.length === 0) {
@@ -90,12 +94,26 @@ jQuery(function ($) {
                 } else {
                     res.data.forEach(s => {
                         html += `
-                            <tr>
+                         <tr>
                                 <td>${s.id}</td>
                                 <td>${s.name}</td>
                                 <td>${s.max_score}</td>
                                 <td>${s.group_name ?? '-'}</td>
+                                <td>
+                                    <button class="button sub-edit"
+                                        data-id="${s.id}"
+                                        data-name="${s.name}"
+                                        data-max="${s.max_score}"
+                                        data-group="${s.group_id ?? ''}">
+                                        Edit
+                                    </button>
+                                      <button class="button button-link-delete sub-delete"
+                                        data-id="${s.id}">
+                                        Delete
+                                    </button>
+                                </td>
                             </tr>
+
                         `;
                     });
                 }
@@ -111,35 +129,81 @@ jQuery(function ($) {
     // --------------------------------------------------
     loadGroups();
     loadSubjects();
+    $(document).on('click', '.sub-edit', function () {
+
+    editingSubjectId = $(this).data('id');
+
+    $('#sub-name').val($(this).data('name'));
+    $('#sub-max').val($(this).data('max'));
+    $('#sub-group').val($(this).data('group'));
+
+    $('#sub-add').text('Update');
+});
+
+
+  //delete-----------------
+  $(document).on('click', '.sub-delete', function () {
+
+    const id = $(this).data('id');
+
+    if (!confirm('Are you sure you want to delete this subject?')) {
+        return;
+    }
+
+    $.post(royalPlugin.ajax_url, {
+        action: 'scgs_delete_subject',
+        nonce: royalPlugin.nonce,
+        id: id
+    }, function (res) {
+
+        if (!res || !res.success) {
+            alert(res?.data?.message || 'Delete failed');
+            return;
+        }
+
+        loadSubjects();
+    });
+});
+
+
 
     // --------------------------------------------------
     // Add Subject
     // --------------------------------------------------
-    $('#sub-add').on('click', function () {
+   $('#sub-add').on('click', function () {
 
-        $.post(
-            royalPlugin.ajax_url,
-            {
-                action: 'scgs_add_subject',
-                nonce: royalPlugin.nonce,
-                name: $('#sub-name').val(),
-                max_score: $('#sub-max').val(),
-                group_id: $('#sub-group').val()
-            },
-            function (res) {
+    const actionName = editingSubjectId
+        ? 'scgs_update_subject'
+        : 'scgs_add_subject';
 
-                if (!res || !res.success) {
-                    alert(res?.data?.message || 'Failed to add subject');
-                    return;
-                }
+    const payload = {
+        action: actionName,
+        nonce: royalPlugin.nonce,
+        name: $('#sub-name').val(),
+        max_score: $('#sub-max').val(),
+        group_id: $('#sub-group').val()
+    };
 
-                $('#sub-name').val('');
-                $('#sub-max').val('');
-                $('#sub-group').val('');
+    if (editingSubjectId) {
+        payload.id = editingSubjectId;
+    }
 
-                loadSubjects();
-            }
-        );
+    $.post(royalPlugin.ajax_url, payload, function (res) {
+
+        if (!res || !res.success) {
+            alert(res?.data?.message || 'Operation failed');
+            return;
+        }
+
+        editingSubjectId = null;
+        $('#sub-name').val('');
+        $('#sub-max').val('');
+        $('#sub-group').val('');
+        $('#sub-add').text('Add');
+
+        loadSubjects();
     });
+});
+
 
 });

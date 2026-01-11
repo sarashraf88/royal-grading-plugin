@@ -50,17 +50,16 @@ function scgs_install_tables() {
      */
     $table_subjects = $wpdb->prefix . 'scgs_subjects';
 
-    $sql_subjects = "
-    CREATE TABLE $table_subjects (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        name VARCHAR(100) NOT NULL,
-        subject_group_id BIGINT UNSIGNED NOT NULL,
-        max_score INT NOT NULL DEFAULT 100,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY subject_group_id (subject_group_id)
-    ) $charset_collate;
-    ";
+            $sql_subjects = 
+            "CREATE TABLE {$wpdb->prefix}scgs_subjects (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            subject_group_id BIGINT UNSIGNED NULL,
+            max_score INT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY subject_group_id (subject_group_id)
+            ) $charset_collate;";
         /**
          * Subject Criteria (by Grade + Academic Year)
          */

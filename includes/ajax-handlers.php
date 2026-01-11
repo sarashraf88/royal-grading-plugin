@@ -370,31 +370,44 @@ function scgs_get_subjects() {
  * SUBJECTS — ADD
  * --------------------------------------------------
  */
-add_action( 'wp_ajax_scgs_add_subject', 'scgs_add_subject' );
+add_action('wp_ajax_scgs_add_subject', 'scgs_add_subject');
 function scgs_add_subject() {
-    scgs_check_permissions();
 
-    if (
-        empty( $_POST['name'] ) ||
-        empty( $_POST['max_score'] ) ||
-        empty( $_POST['subject_group_id'] )
-    ) {
-        wp_send_json_error( [ 'message' => 'Missing required fields' ] );
-    }
+    check_ajax_referer('scgs_nonce', 'nonce');
 
     global $wpdb;
-    $table = $wpdb->prefix . 'scgs_subjects';
 
-    $wpdb->insert(
-        $table,
-        [
-            'name'             => sanitize_text_field( $_POST['name'] ),
-            'max_score'        => intval( $_POST['max_score'] ),
-            'subject_group_id' => intval( $_POST['subject_group_id'] ),
-        ]
-    );
+    $table = $wpdb->prefix . 'scgs_subjects'; // <-- confirm table name
 
-    wp_send_json_success();
+    if ( empty($_POST['name']) || empty($_POST['max_score']) ) {
+        wp_send_json_error(['message' => 'Missing required fields']);
+    }
+
+ $data = [
+    'name'      => sanitize_text_field($_POST['name']),
+    'max_score' => intval($_POST['max_score']),
+];
+
+            if ( isset($_POST['group_id']) && $_POST['group_id'] !== '' ) {
+                $data['subject_group_id'] = intval($_POST['group_id']);
+            } else {
+                $data['subject_group_id'] = null;
+            }
+
+
+    if ( isset($_POST['subject_group_id']) && $_POST['subject_group_id'] !== '' ) {
+        $data['subject_group_id'] = intval($_POST['subject_group_id']);
+    }
+
+    $result = $wpdb->insert($table, $data);
+
+    if ($result === false) {
+        wp_send_json_error([
+            'message' => $wpdb->last_error
+        ]);
+    }
+
+    wp_send_json_success(['message' => 'Subject added']);
 }
 
 /**
@@ -402,34 +415,51 @@ function scgs_add_subject() {
  * SUBJECTS — UPDATE
  * --------------------------------------------------
  */
-add_action( 'wp_ajax_scgs_update_subject', 'scgs_update_subject' );
+add_action('wp_ajax_scgs_update_subject', 'scgs_update_subject');
 function scgs_update_subject() {
-    scgs_check_permissions();
 
-    if (
-        empty( $_POST['id'] ) ||
-        empty( $_POST['name'] ) ||
-        empty( $_POST['max_score'] ) ||
-        empty( $_POST['subject_group_id'] )
-    ) {
-        wp_send_json_error( [ 'message' => 'Missing required fields' ] );
-    }
-
+    check_ajax_referer('scgs_nonce', 'nonce');
     global $wpdb;
+
     $table = $wpdb->prefix . 'scgs_subjects';
 
-    $wpdb->update(
+    if ( ! isset($_POST['id'], $_POST['name'], $_POST['max_score']) ) {
+        wp_send_json_error(['message' => 'Missing required fields']);
+    }
+
+    $id        = intval($_POST['id']);
+    $name      = sanitize_text_field($_POST['name']);
+    $max_score = intval($_POST['max_score']);
+
+    // IMPORTANT: build data array WITHOUT group first
+    $data = [
+        'name'      => $name,
+        'max_score' => $max_score,
+    ];
+
+    // ONLY use subject_group_id (correct column)
+    if ( isset($_POST['group_id']) && $_POST['group_id'] !== '' ) {
+        $data['subject_group_id'] = intval($_POST['group_id']);
+    } else {
+        $data['subject_group_id'] = null;
+    }
+
+    $result = $wpdb->update(
         $table,
-        [
-            'name'             => sanitize_text_field( $_POST['name'] ),
-            'max_score'        => intval( $_POST['max_score'] ),
-            'subject_group_id' => intval( $_POST['subject_group_id'] ),
-        ],
-        [ 'id' => intval( $_POST['id'] ) ]
+        $data,
+        ['id' => $id]
     );
 
-    wp_send_json_success();
+    if ($result === false) {
+        wp_send_json_error([
+            'message' => $wpdb->last_error
+        ]);
+    }
+
+    wp_send_json_success(['message' => 'Subject updated']);
 }
+
+
 
 /**
  * --------------------------------------------------
