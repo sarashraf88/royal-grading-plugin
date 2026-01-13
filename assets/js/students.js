@@ -1,5 +1,8 @@
 jQuery(function ($) {
 
+    $('#stu-class option:selected').data('grade')
+
+
     const root = $('#scgs-students-root');
     if (!root.length) return;
 
@@ -11,31 +14,114 @@ jQuery(function ($) {
     // Render UI
     // --------------------------------------------------
     root.html(`
+        
         <p>
-            <input type="file" id="stu-import-file" accept=".csv" />
-            <button class="button" id="stu-import">Import CSV</button>
-            <button class="button" id="stu-export">Export CSV</button>
-        </p>
+        <input type="file" id="stu-import-file" accept=".csv" />
+        <button class="button" id="stu-import">Import CSV</button>
+        <button class="button" id="stu-export">Export CSV</button>
+    </p>
 
-        <h2>Add Student</h2>
+    <h2>Add Student</h2>
 
-        <p>
-            <input type="text" id="stu-code" placeholder="Student Code" />
-            <input type="text" id="stu-first" placeholder="First Name" />
-            <input type="text" id="stu-last" placeholder="Last Name" />
-            <input type="text" id="stu-nationality" placeholder="Nationality" />
-            <input type="date" id="stu-dob" />
-            <input type="email" id="stu-email" placeholder="Student Email" />
-            <select id="stu-class"></select>
+    <p>
+        <input type="text" id="stu-code" placeholder="Student Code" />
+        <input type="text" id="stu-first" placeholder="First Name" />
+        <input type="text" id="stu-last" placeholder="Last Name" />
+        <input type="text" id="stu-nationality" placeholder="Nationality" />
+        <input type="date" id="stu-dob" />
+        <input type="email" id="stu-email" placeholder="Student Email" />
+        <select id="stu-class"></select>
 
-            <button class="button button-primary" id="stu-add">
-                Add
-            </button>
-        </p>
+        <button class="button button-primary" id="stu-add">
+            Add
+        </button>
+    </p>
 
-        <hr/>
-        <div id="students-table"></div>
+   <hr>
+<h3>Student Subject Groups</h3>
+
+<p>
+    <label><strong>Academic Year</strong></label><br>
+    <select id="stu-subject-year">
+        <option value="">Select Academic Year</option>
+    </select>
+</p>
+
+<div id="stu-subject-groups">
+    <p>Please select an academic year.</p>
+</div>
+
+<p>
+    <button class="button button-primary" id="stu-save-subject-groups">
+        Save Subject Groups
+    </button>
+</p>
+    <div id="student-subject-groups-section"></div>
+
+    <hr/>
+    <div id="students-table"></div>
+        
+     
     `);
+function loadAcademicYears() {
+    $.post(royalPlugin.ajax_url, {
+        action: 'scgs_get_academic_years',
+        nonce: royalPlugin.nonce
+    }, function (res) {
+
+        if (!res || !res.success) return;
+
+        let options = '<option value="">Select Academic Year</option>';
+
+        res.data.forEach(y => {
+            options += `<option value="${y.id}">${y.name}</option>`;
+        });
+
+        $('#stu-subject-year').html(options);
+    });
+}
+  loadAcademicYears();
+
+    
+function loadSubjectGroupsForYear() {
+    const yearId = $('#stu-subject-year').val();
+
+    if (!yearId) {
+        $('#stu-subject-groups').html('<p>Please select an academic year.</p>');
+        return;
+    }
+
+    $.post(royalPlugin.ajax_url, {
+        action: 'scgs_get_subject_groups',
+        nonce: royalPlugin.nonce
+    }, function (res) {
+
+        if (!res || !res.success) {
+            $('#stu-subject-groups').html('<p>Error loading subject groups.</p>');
+            return;
+        }
+
+        let html = '';
+
+        res.data.forEach(g => {
+            html += `
+                <label style="display:block;margin-bottom:6px">
+                    <input type="checkbox"
+                        class="stu-subject-group"
+                        value="${g.id}">
+                    ${g.name} (${g.grade_level})
+                </label>
+            `;
+        });
+
+        $('#stu-subject-groups').html(html);
+
+        // Load existing selections if editing
+        loadStudentSubjectGroups();
+    });
+}
+
+$('#stu-subject-year').on('change', loadSubjectGroupsForYear);
 
     // --------------------------------------------------
     // Load Classes
@@ -53,7 +139,12 @@ jQuery(function ($) {
 
             let options = '<option value="">Select Class</option>';
             res.data.forEach(c => {
-                options += `<option value="${c.id}">${c.name}</option>`;
+                options += `
+                    <option value="${c.id}" data-grade="${c.grade_level}">
+                        ${c.name} (${c.grade_level})
+                    </option>
+                    `;
+
             });
 
             $('#stu-class').html(options);
