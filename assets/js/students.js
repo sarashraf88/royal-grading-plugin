@@ -38,14 +38,12 @@ jQuery(function ($) {
     </p>
 
    <hr>
-<h3>Student Subject Groups</h3>
-
-<p>
-    <label><strong>Academic Year</strong></label><br>
-    <select id="stu-subject-year">
-        <option value="">Select Academic Year</option>
-    </select>
+   <p>
+    <label><strong>Academic Year:</strong></label>
+    <select id="stu-subject-year"></select>
 </p>
+
+<h3>Student Subject Groups</h3>
 
 <div id="stu-subject-groups">
     <p>Please select an academic year.</p>
@@ -63,7 +61,11 @@ jQuery(function ($) {
         
      
     `);
+// ======================================================
+
+
 function loadAcademicYears() {
+
     $.post(royalPlugin.ajax_url, {
         action: 'scgs_get_academic_years',
         nonce: royalPlugin.nonce
@@ -71,57 +73,126 @@ function loadAcademicYears() {
 
         if (!res || !res.success) return;
 
-        let options = '<option value="">Select Academic Year</option>';
+        let options = '';
+        let activeYearId = null;
 
         res.data.forEach(y => {
-            options += `<option value="${y.id}">${y.name}</option>`;
+            if (y.is_active == 1 && !activeYearId) {
+                activeYearId = y.id;
+            }
+
+            options += `
+                <option value="${y.id}">
+                    ${y.name}${y.is_active == 1 ? ' (Active)' : ''}
+                </option>
+            `;
         });
 
         $('#stu-subject-year').html(options);
+
+        // ✅ DEFAULT = ACTIVE YEAR
+        if (activeYearId) {
+            $('#stu-subject-year').val(activeYearId);
+        }
+
+        // Load data using default year
+        loadStudents();
     });
 }
-  loadAcademicYears();
+loadAcademicYears();
 
-    
-function loadSubjectGroupsForYear() {
-    const yearId = $('#stu-subject-year').val();
 
-    if (!yearId) {
-        $('#stu-subject-groups').html('<p>Please select an academic year.</p>');
+
+
+    function loadSubjectsForGrade() {
+
+    const selectedClass = $('#stu-class option:selected');
+    const gradeLevel = selectedClass.data('grade');
+
+    if (!gradeLevel) {
+        $('#stu-subject-groups').html('<p>Please select a class.</p>');
         return;
     }
 
-    $.post(royalPlugin.ajax_url, {
-        action: 'scgs_get_subject_groups',
-        nonce: royalPlugin.nonce
-    }, function (res) {
+        $.post(royalPlugin.ajax_url, {
+            action: 'scgs_get_subjects_by_grade',
+            nonce: royalPlugin.nonce,
+            grade_level: gradeLevel
+        }, function (res){
 
         if (!res || !res.success) {
-            $('#stu-subject-groups').html('<p>Error loading subject groups.</p>');
+            $('#stu-subject-groups').html('<p>Error loading subjects.</p>');
             return;
         }
 
         let html = '';
+        let currentGroup = null;
 
-        res.data.forEach(g => {
+        res.data.forEach(row => {
+
+            if (currentGroup !== row.group_name) {
+                currentGroup = row.group_name;
+                html += `<h4 style="margin-top:12px">${currentGroup}</h4>`;
+            }
+
             html += `
-                <label style="display:block;margin-bottom:6px">
+                <label style="display:block;margin-left:15px">
                     <input type="checkbox"
-                        class="stu-subject-group"
-                        value="${g.id}">
-                    ${g.name} (${g.grade_level})
+                        class="stu-subject"
+                        data-group="${row.group_id}"
+                        value="${row.subject_id}">
+                    ${row.subject_name}
                 </label>
             `;
         });
 
         $('#stu-subject-groups').html(html);
 
-        // Load existing selections if editing
-        loadStudentSubjectGroups();
+        // restore selections if editing
+        //loadStudentSubjects();
     });
 }
 
-$('#stu-subject-year').on('change', loadSubjectGroupsForYear);
+
+
+$('#stu-class').on('change', function () {
+    loadSubjectsForGrade();
+});
+
+
+// ======================================================
+// Load Student Subject Groups (EDIT MODE)
+// ======================================================
+function loadStudentSubjectGroups() {
+
+    // Only run in edit mode
+    if (!editingStudentId) return;
+
+    const academicYearId = $('#stu-subject-year').val();
+    if (!academicYearId) return;
+
+    $.post(royalPlugin.ajax_url, {
+        action: 'scgs_get_student_subject_groups',
+        student_id: editingStudentId,
+        academic_year_id: academicYearId
+    }, function (res) {
+
+        if (!res || !res.success) return;
+
+        const selectedGroups = res.data.map(String);
+
+        $('.stu-subject-group').each(function () {
+            if (selectedGroups.includes($(this).val())) {
+                $(this).prop('checked', true);
+            }
+        });
+    });
+}
+$('#stu-subject-year').on('change', function () {
+    loadStudentSubjectGroups();
+});
+
+
 
     // --------------------------------------------------
     // Load Classes

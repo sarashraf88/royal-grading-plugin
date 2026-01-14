@@ -144,3 +144,5 @@ add_action('wp_ajax_scgs_set_active_academic_year', function () {
 
     wp_send_json_success();
 });
+
+

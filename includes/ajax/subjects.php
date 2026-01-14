@@ -127,3 +127,38 @@ function scgs_delete_subject() {
 
     wp_send_json_success(['message' => 'Subject deleted']);
 }
+/**
+ * Get Subjects by Grade Level (grouped by Subject Group)
+ */
+add_action('wp_ajax_scgs_get_subjects_by_grade', 'scgs_get_subjects_by_grade');
+function scgs_get_subjects_by_grade() {
+
+    scgs_check_permissions();
+    global $wpdb;
+
+    if ( empty($_POST['grade_level']) ) {
+        wp_send_json_error(['message' => 'Grade level required']);
+    }
+
+    $grade = sanitize_text_field($_POST['grade_level']);
+
+    $subjects = $wpdb->prefix . 'scgs_subjects';
+    $groups   = $wpdb->prefix . 'scgs_subject_groups';
+
+    $rows = $wpdb->get_results(
+        $wpdb->prepare("
+            SELECT
+                s.id AS subject_id,
+                s.name AS subject_name,
+                g.id AS group_id,
+                g.name AS group_name
+            FROM $subjects s
+            INNER JOIN $groups g ON g.id = s.subject_group_id
+            WHERE g.grade_level = %s
+            ORDER BY g.name, s.name
+        ", $grade),
+        ARRAY_A
+    );
+
+    wp_send_json_success($rows);
+}
