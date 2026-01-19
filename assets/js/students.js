@@ -103,7 +103,6 @@ loadAcademicYears();
 
 
 
-
     function loadSubjectsForGrade() {
 
     const selectedClass = $('#stu-class option:selected');
