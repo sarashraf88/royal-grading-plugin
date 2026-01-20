@@ -1,120 +1,108 @@
 <?php
-if ( ! defined('ABSPATH') ) {
-    exit;
-}
+if ( ! defined('ABSPATH') ) exit;
 
-/**
- * ======================================================
- * SUBJECT CRITERIA — AJAX HANDLERS
- * ======================================================
- */
-
-/**
- * Get Subject Criteria
- */
 add_action('wp_ajax_scgs_get_subject_criteria', 'scgs_get_subject_criteria');
 function scgs_get_subject_criteria() {
 
+    check_ajax_referer('scgs_nonce', 'nonce');
     scgs_check_permissions();
+
+    if ( empty($_POST['grade_level']) || empty($_POST['academic_year_id']) ) {
+        wp_send_json_error(['message' => 'Missing parameters']);
+    }
+
     global $wpdb;
 
-    $table = $wpdb->prefix . 'scgs_subject_criteria';
+    $subjects = $wpdb->prefix . 'scgs_subjects';
+    $criteria = $wpdb->prefix . 'scgs_subject_criteria';
 
-    $criteria = $wpdb->get_results("
-        SELECT
-            id,
-            subject_id,
-            criteria_name,
-            max_score
-        FROM $table
-        ORDER BY id DESC
-    ", ARRAY_A);
+    $grade = sanitize_text_field($_POST['grade_level']);
+    $year  = intval($_POST['academic_year_id']);
 
-    wp_send_json_success($criteria);
+    $rows = $wpdb->get_results(
+        $wpdb->prepare("
+            SELECT
+                s.id AS subject_id,
+                s.name AS subject_name,
+                IFNULL(c.weekly_weight, 0) AS weekly_weight,
+                IFNULL(c.assessment_weight, 0) AS assessment_weight,
+                IFNULL(c.final_weight, 0) AS final_weight,
+                IFNULL(c.has_assessment, 1) AS has_assessment,
+                IFNULL(c.credit_type, 'credit') AS credit_type
+            FROM $subjects s
+            LEFT JOIN $criteria c
+                ON c.subject_id = s.id
+                AND c.grade_level = %s
+                AND c.academic_year_id = %d
+            ORDER BY s.name ASC
+        ", $grade, $year),
+        ARRAY_A
+    );
+
+    wp_send_json_success($rows);
 }
 
 /**
- * Add Subject Criterion
+ * SAVE
  */
-add_action('wp_ajax_scgs_add_subject_criteria', 'scgs_add_subject_criteria');
-function scgs_add_subject_criteria() {
 
+add_action('wp_ajax_scgs_save_subject_criteria', 'scgs_save_subject_criteria');
+function scgs_save_subject_criteria() {
+
+    check_ajax_referer('scgs_nonce', 'nonce');
     scgs_check_permissions();
 
     if (
-        ! isset($_POST['subject_id'], $_POST['criteria_name'], $_POST['max_score'])
+        empty($_POST['academic_year_id']) ||
+        empty($_POST['grade_level']) ||
+        empty($_POST['criteria'])
     ) {
-        wp_send_json_error(['message' => 'Missing required fields']);
+        wp_send_json_error(['message' => 'Missing data']);
     }
 
     global $wpdb;
     $table = $wpdb->prefix . 'scgs_subject_criteria';
 
-    $wpdb->insert(
-        $table,
-        [
-            'subject_id'    => intval($_POST['subject_id']),
-            'criteria_name' => sanitize_text_field($_POST['criteria_name']),
-            'max_score'     => floatval($_POST['max_score']),
-        ]
-    );
+    $year  = intval($_POST['academic_year_id']);
+    $grade = sanitize_text_field($_POST['grade_level']);
+    $rows  = json_decode(stripslashes($_POST['criteria']), true);
 
-    wp_send_json_success(['message' => 'Criteria added successfully']);
+    foreach ($rows as $row) {
+
+        $total =
+            floatval($row['weekly_weight']) +
+            floatval($row['assessment_weight']) +
+            floatval($row['final_weight']);
+
+        if ( round($total, 2) !== 100.00 ) {
+            wp_send_json_error([
+                'message' => 'Weights must equal 100%'
+            ]);
+        }
+
+        $wpdb->replace(
+            $table,
+            [
+                'subject_id'        => intval($row['subject_id']),
+                'grade_level'       => $grade,
+                'academic_year_id'  => $year,
+                'weekly_weight'     => floatval($row['weekly_weight']),
+                'assessment_weight' => floatval($row['assessment_weight']),
+                'final_weight'      => floatval($row['final_weight']),
+                'has_assessment'    => intval($row['has_assessment']),
+                'credit_type'       => sanitize_text_field($row['credit_type']),
+            ],
+            [
+                '%d','%s','%d','%f','%f','%f','%d','%s'
+            ]
+        );
+    }
+
+    wp_send_json_success(['message' => 'Criteria saved']);
 }
 
 /**
- * Update Subject Criterion
+ * 
  */
-add_action('wp_ajax_scgs_update_subject_criteria', 'scgs_update_subject_criteria');
-function scgs_update_subject_criteria() {
 
-    scgs_check_permissions();
 
-    if (
-        ! isset($_POST['id'], $_POST['subject_id'], $_POST['criteria_name'], $_POST['max_score'])
-    ) {
-        wp_send_json_error(['message' => 'Missing required fields']);
-    }
-
-    global $wpdb;
-    $table = $wpdb->prefix . 'scgs_subject_criteria';
-
-    $wpdb->update(
-        $table,
-        [
-            'subject_id'    => intval($_POST['subject_id']),
-            'criteria_name' => sanitize_text_field($_POST['criteria_name']),
-            'max_score'     => floatval($_POST['max_score']),
-        ],
-        [
-            'id' => intval($_POST['id']),
-        ]
-    );
-
-    wp_send_json_success(['message' => 'Criteria updated successfully']);
-}
-
-/**
- * Delete Subject Criterion
- */
-add_action('wp_ajax_scgs_delete_subject_criteria', 'scgs_delete_subject_criteria');
-function scgs_delete_subject_criteria() {
-
-    scgs_check_permissions();
-
-    if ( empty($_POST['id']) ) {
-        wp_send_json_error(['message' => 'Missing ID']);
-    }
-
-    global $wpdb;
-    $table = $wpdb->prefix . 'scgs_subject_criteria';
-
-    $wpdb->delete(
-        $table,
-        [
-            'id' => intval($_POST['id']),
-        ]
-    );
-
-    wp_send_json_success(['message' => 'Criteria deleted successfully']);
-}
