@@ -17,24 +17,26 @@ function scgs_get_subjects() {
     scgs_check_permissions();
     global $wpdb;
 
-    $subjects = $wpdb->prefix . 'scgs_subjects';
-    $groups   = $wpdb->prefix . 'scgs_subject_groups';
+$subjects = $wpdb->prefix . 'scgs_subjects';
+$groups   = $wpdb->prefix . 'scgs_subject_groups';
 
-    $data = $wpdb->get_results(
-        "SELECT
-            s.id,
-            s.name,
-            s.max_score,
-            s.subject_group_id,
-            g.name AS group_name
-         FROM $subjects s
-         LEFT JOIN $groups g
-            ON s.subject_group_id = g.id
-         ORDER BY s.id DESC",
-        ARRAY_A
-    );
+$data = $wpdb->get_results(
+    "SELECT
+        s.id,
+        s.name,
+        s.max_score,
+        s.subject_group_id,
+        g.name AS group_name,
+        g.grade_level
+     FROM $subjects s
+     LEFT JOIN $groups g
+        ON s.subject_group_id = g.id
+     ORDER BY s.id DESC",
+    ARRAY_A
+);
 
-    wp_send_json_success($data);
+wp_send_json_success($data);
+
 }
 
 /**

@@ -19,6 +19,25 @@ function scgs_register_admin_menu() {
     );
 
     add_submenu_page(
+    'scgs-dashboard',
+    'Academic Years',
+    'Academic Years',
+    'manage_options',
+    'scgs-academic-years',
+    'scgs_academic_years_page'
+    );
+
+     add_submenu_page(
+        'scgs-dashboard',
+        'Subject Groups',
+        'Subject Groups',
+        'manage_options',
+        'scgs-subject-groups',
+        'scgs_subject_groups_page'
+    );
+
+
+    add_submenu_page(
         'scgs-dashboard',
         'Subjects',
         'Subjects',
@@ -27,14 +46,17 @@ function scgs_register_admin_menu() {
         'scgs_subjects_page'
     );
 
-    add_submenu_page(
-        'scgs-dashboard',
-        'Subject Groups',
-        'Subject Groups',
-        'manage_options',
-        'scgs-subject-groups',
-        'scgs_subject_groups_page'
+     add_submenu_page(
+    'scgs-dashboard',
+    'Subject Criteria',
+    'Subject Criteria',
+    'manage_options',
+    'scgs-subject-criteria',
+    'scgs_subject_criteria_page'
     );
+
+
+   
 
     add_submenu_page(
         'scgs-dashboard',
@@ -53,23 +75,7 @@ function scgs_register_admin_menu() {
         'scgs-students',
         'scgs_students_page'
     );
-    add_submenu_page(
-    'scgs-dashboard',
-    'Subject Criteria',
-    'Subject Criteria',
-    'manage_options',
-    'scgs-subject-criteria',
-    'scgs_subject_criteria_page'
-);
-
-add_submenu_page(
-    'scgs-dashboard',
-    'Academic Years',
-    'Academic Years',
-    'manage_options',
-    'scgs-academic-years',
-    'scgs_academic_years_page'
-);
+   
 
 
 }
@@ -78,25 +84,43 @@ function scgs_dashboard_page() {
     echo '<div class="wrap"><h1>School Grading System</h1></div>';
 }
 
-function scgs_subjects_page() {
-    echo '<div class="wrap"><h1>Subjects</h1><div id="scgs-subjects-root"></div></div>';
-}
+/**
+ * Acadmic year 
+ */
 
-function scgs_subject_groups_page() {
-    echo '<div class="wrap"><h1>Subject Groups</h1><div id="scgs-subject-groups-root"></div></div>';
-}
-
-function scgs_classes_page() {
-    echo '<div class="wrap"><h1>Classes</h1><div id="scgs-classes-root"></div></div>';
-}
-
-function scgs_students_page() {
-    echo '<div class="wrap"><h1>Students</h1><div id="scgs-students-root"></div></div>';
-}
-function scgs_subject_criteria_page() {
-     echo '<div class="wrap"><h1>Subject Criteria</h1><div id="scgs-subject-criteria-root"></div></div>';
-}
 function scgs_academic_years_page() {
       echo '<div class="wrap"><h1>Academic Years</h1><div id="scgs-academic-year-root"></div></div>';
  }
 
+ /**
+  * Subject group
+  */
+function scgs_subject_groups_page() {
+    echo '<div class="wrap"><h1>Subject Groups</h1><div id="scgs-subject-groups-root"></div></div>';
+}
+
+/**
+ * Subjects
+ */
+function scgs_subjects_page() {
+    echo '<div class="wrap"><h1>Subjects</h1><div id="scgs-subjects-root"></div></div>';
+}
+/**
+ * Classes
+ */
+function scgs_classes_page() {
+    echo '<div class="wrap"><h1>Classes</h1><div id="scgs-classes-root"></div></div>';
+}
+/**
+ * Subject Crietria 
+ * 
+ */
+function scgs_subject_criteria_page() {
+     echo '<div class="wrap"><h1>Subject Criteria</h1><div id="scgs-subject-criteria-root"></div></div>';
+}
+/**
+ * Students 
+ */
+function scgs_students_page() {
+    echo '<div class="wrap"><h1>Students</h1><div id="scgs-students-root"></div></div>';
+}

@@ -71,6 +71,7 @@ jQuery(function ($) {
                         <tr>
                             <th>ID</th>
                             <th>Subject</th>
+                            <th>Grade</th>
                             <th>Max Score</th>
                             <th>Group</th>
                             <th>Action</th>
@@ -87,6 +88,7 @@ jQuery(function ($) {
                         <tr>
                             <td>${s.id}</td>
                             <td>${s.name}</td>
+                            <td>${s.grade_level ?? '-'}</td>
                             <td>${s.max_score}</td>
                             <td>${s.group_name ?? '-'}</td>
                             <td>
