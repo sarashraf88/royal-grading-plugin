@@ -157,6 +157,26 @@ function scgs_install_tables() {
         ) $charset_collate;
     ";
 
+    /**
+ * Grades
+ */
+$table_grades = $wpdb->prefix . 'scgs_grades';
+
+$sql_grades = "
+CREATE TABLE $table_grades (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(20) NOT NULL,
+    sort_order INT DEFAULT 0,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY name (name)
+) $charset_collate;
+";
+
+
+
+
     // ---- Execute in SAFE order ----
     dbDelta($sql_academic_years);
     dbDelta($sql_subject_groups);
@@ -166,4 +186,5 @@ function scgs_install_tables() {
     dbDelta($sql_parents);
     dbDelta($sql_criteria);
     dbDelta($sql_student_subject_groups);
+    dbDelta($sql_grades);   
 }

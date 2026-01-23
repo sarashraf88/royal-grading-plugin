@@ -1,16 +1,3 @@
-/**
- * ======================================================
- * ROYAL PLUGIN — ADMIN JS LOADER (FINAL)
- * ======================================================
- * Loads ONLY the JS module needed for the current admin page.
- *
- * Requirements:
- * - jQuery loaded
- * - royalPlugin object localized from PHP
- * - Each admin page has a unique root div
- * ======================================================
- */
-
 jQuery(document).ready(function ($) {
 
     if (typeof royalPlugin === 'undefined') {
@@ -18,69 +5,54 @@ jQuery(document).ready(function ($) {
         return;
     }
 
-    // --------------------------------------------------
-    // SUBJECT GROUPS
-    // --------------------------------------------------
+    function load(moduleKey, label) {
+        const url = royalPlugin.modules?.[moduleKey];
+
+        if (!url) {
+            console.error(`Module "${moduleKey}" is not defined`);
+            return;
+        }
+
+        console.log(`Loading module: ${label}`);
+        $.getScript(url)
+            .done(() => console.log(`${label} module loaded`))
+            .fail(() => console.error(`Failed to load ${label}`));
+    }
+
+    if ($('#scgs-grades-root').length) {
+        load('grades', 'Grades');
+        return;
+    }
+
     if ($('#scgs-subject-groups-root').length) {
-        console.log('Loading Subject Groups module');
-        $.getScript(royalPlugin.modules.subjectGroups)
-            .fail(() => console.error('Failed to load subject-groups.js'));
+        load('subjectGroups', 'Subject Groups');
         return;
     }
 
-    // --------------------------------------------------
-    // SUBJECTS
-    // --------------------------------------------------
     if ($('#scgs-subjects-root').length) {
-        console.log('Loading Subjects module');
-        $.getScript(royalPlugin.modules.subjects)
-            .fail(() => console.error('Failed to load subjects.js'));
+        load('subjects', 'Subjects');
         return;
     }
 
-    // --------------------------------------------------
-    // CLASSES
-    // --------------------------------------------------
     if ($('#scgs-classes-root').length) {
-        console.log('Loading Classes module');
-        $.getScript(royalPlugin.modules.classes)
-            .fail(() => console.error('Failed to load classes.js'));
+        load('classes', 'Classes');
         return;
     }
 
-    // --------------------------------------------------
-    // STUDENTS
-    // --------------------------------------------------
     if ($('#scgs-students-root').length) {
-        console.log('Loading Students module');
-        $.getScript(royalPlugin.modules.students)
-            .fail(() => console.error('Failed to load students.js'));
+        load('students', 'Students');
         return;
     }
 
-    // --------------------------------------------------
-    // SUBJECT CRITERIA
-    // --------------------------------------------------
     if ($('#scgs-subject-criteria-root').length) {
-        console.log('Loading Subject Criteria module');
-        $.getScript(royalPlugin.modules.subjectCriteria)
-            .fail(() => console.error('Failed to load subject-criteria.js'));
+        load('subjectCriteria', 'Subject Criteria');
         return;
     }
 
-    // --------------------------------------------------
-    // ACADEMIC YEAR
-    // --------------------------------------------------
     if ($('#scgs-academic-year-root').length) {
-        console.log('Loading Academic Year module');
-        $.getScript(royalPlugin.modules.academicYear)
-            .fail(() => console.error('Failed to load academic-year.js'));
+        load('academicYear', 'Academic Year');
         return;
     }
 
-    // --------------------------------------------------
-    // FALLBACK
-    // --------------------------------------------------
-    console.warn('Royal Plugin admin.js loaded, but no known page root was detected.');
-
+    console.warn('Admin page loaded but no known root detected');
 });

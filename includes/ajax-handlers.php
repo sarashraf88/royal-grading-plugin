@@ -37,4 +37,6 @@ require_once __DIR__ . '/ajax/subject-criteria.php';
 require_once __DIR__ . '/ajax/students.php';
 require_once __DIR__ . '/ajax/students-import-export.php';
 require_once __DIR__ . '/ajax/student-subjects.php';
+require_once __DIR__ . '/ajax/grades.php';
+
 

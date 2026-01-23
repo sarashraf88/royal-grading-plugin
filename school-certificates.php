@@ -44,20 +44,23 @@ add_action( 'admin_enqueue_scripts', function () {
 
 
 wp_localize_script(
-    'royal-admin-js',
-    'royalPlugin',
+    'royal-admin-js', // ✅ MUST match enqueue handle
+    'royalPlugin',    // ✅ JS object used in admin.js
     [
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce'    => wp_create_nonce('scgs_nonce'),
         'modules'  => [
-            'subjectGroups'  => plugin_dir_url(__FILE__) . 'assets/js/subject-groups.js',
-            'subjects'       => plugin_dir_url(__FILE__) . 'assets/js/subjects.js',
-            'classes'        => plugin_dir_url(__FILE__) . 'assets/js/classes.js',
-            'students'       => plugin_dir_url(__FILE__) . 'assets/js/students.js',
-            'subjectCriteria'=> plugin_dir_url(__FILE__) . 'assets/js/subject-criteria.js',
-            'academicYear'   => plugin_dir_url(__FILE__) . 'assets/js/academic-year.js',
+            'grades'           => plugin_dir_url(__FILE__) . 'assets/js/grades.js',
+            'subjectGroups'    => plugin_dir_url(__FILE__) . 'assets/js/subject-groups.js',
+            'subjects'         => plugin_dir_url(__FILE__) . 'assets/js/subjects.js',
+            'classes'          => plugin_dir_url(__FILE__) . 'assets/js/classes.js',
+            'students'         => plugin_dir_url(__FILE__) . 'assets/js/students.js',
+            'subjectCriteria'  => plugin_dir_url(__FILE__) . 'assets/js/subject-criteria.js',
+            'academicYear'     => plugin_dir_url(__FILE__) . 'assets/js/academic-year.js',
         ]
     ]
 );
+
+
 
 });

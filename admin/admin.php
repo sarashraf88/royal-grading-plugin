@@ -41,15 +41,24 @@ function scgs_enqueue_admin_assets() {
         true
     );
 
-    wp_localize_script(
-        'scgs-admin-react',
-        'SCGS_DATA',
-        [
-            'apiUrl' => rest_url( 'scgs/v1' ),
-            'nonce'  => wp_create_nonce( 'wp_rest' ),
-            'canManageStudents' => current_user_can( 'scgs_manage_students' )
-        ]
-    );
+   wp_localize_script(
+    'royal-admin-js',
+    'royalPlugin',
+    [
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce'    => wp_create_nonce('scgs_nonce'),
+        'modules'  => [
+            'academicYear'   => plugin_dir_url(__FILE__) . '../assets/js/academic-year.js',
+            'subjectGroups'  => plugin_dir_url(__FILE__) . '../assets/js/subject-groups.js',
+            'subjects'       => plugin_dir_url(__FILE__) . '../assets/js/subjects.js',
+            'subjectCriteria'=> plugin_dir_url(__FILE__) . '../assets/js/subject-criteria.js',
+            'classes'        => plugin_dir_url(__FILE__) . '../assets/js/classes.js',
+            'students'       => plugin_dir_url(__FILE__) . '../assets/js/students.js',
+            'grades'         => plugin_dir_url(__FILE__) . '../assets/js/grades.js',
+        ],
+    ]
+);
+
 }
 
 /**
