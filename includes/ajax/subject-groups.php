@@ -7,6 +7,7 @@ if ( ! defined('ABSPATH') ) exit;
  * ==================================================
  */
 
+
 /**
  * Get Subject Groups
  */
@@ -15,15 +16,26 @@ function scgs_get_subject_groups() {
     scgs_check_permissions();
     global $wpdb;
 
-    $table = $wpdb->prefix . 'scgs_subject_groups';
+    $groups = $wpdb->prefix . 'scgs_subject_groups';
+    $grades = $wpdb->prefix . 'scgs_grades';
 
-    $groups = $wpdb->get_results(
-        "SELECT id, name, grade_level, is_required FROM $table ORDER BY id DESC",
-        ARRAY_A
-    );
+    $data = $wpdb->get_results("
+       SELECT
+    sg.id,
+    sg.name,
+    sg.grade_id,
+    sg.is_required,
+    g.name AS grade_name
+    FROM {$wpdb->prefix}scgs_subject_groups sg
+    LEFT JOIN {$wpdb->prefix}scgs_grades g
+    ON sg.grade_id = g.id
+    ORDER BY sg.id DESC
 
-    wp_send_json_success($groups);
+    ", ARRAY_A);
+
+    wp_send_json_success($data);
 }
+
 
 /**
  * Add Subject Group
@@ -31,8 +43,9 @@ function scgs_get_subject_groups() {
 add_action('wp_ajax_scgs_add_subject_group', 'scgs_add_subject_group');
 function scgs_add_subject_group() {
     scgs_check_permissions();
+    check_ajax_referer('scgs_nonce', 'nonce');
 
-    if ( ! isset($_POST['name'], $_POST['grade_level']) ) {
+    if (empty($_POST['name']) || empty($_POST['grade_id'])) {
         wp_send_json_error(['message' => 'Missing required fields']);
     }
 
@@ -41,12 +54,13 @@ function scgs_add_subject_group() {
 
     $wpdb->insert($table, [
         'name'        => sanitize_text_field($_POST['name']),
-        'grade_level' => sanitize_text_field($_POST['grade_level']),
+        'grade_id'    => intval($_POST['grade_id']),
         'is_required' => isset($_POST['is_required']) ? 1 : 0,
     ]);
 
-    wp_send_json_success(['message' => 'Subject group added']);
+    wp_send_json_success();
 }
+
 
 /**
  * Update Subject Group
@@ -54,28 +68,26 @@ function scgs_add_subject_group() {
 add_action('wp_ajax_scgs_update_subject_group', 'scgs_update_subject_group');
 function scgs_update_subject_group() {
     scgs_check_permissions();
+    check_ajax_referer('scgs_nonce', 'nonce');
 
-    if ( ! isset($_POST['id'], $_POST['name'], $_POST['grade_level']) ) {
+    if (empty($_POST['id']) || empty($_POST['name']) || empty($_POST['grade_id'])) {
         wp_send_json_error(['message' => 'Missing required fields']);
     }
 
     global $wpdb;
     $table = $wpdb->prefix . 'scgs_subject_groups';
 
-    $wpdb->update(
-        $table,
-        [
-            'name'        => sanitize_text_field($_POST['name']),
-            'grade_level' => sanitize_text_field($_POST['grade_level']),
-            'is_required' => isset($_POST['is_required']) ? 1 : 0,
-        ],
-        [
-            'id' => intval($_POST['id']),
-        ]
-    );
+    $wpdb->update($table, [
+        'name'        => sanitize_text_field($_POST['name']),
+        'grade_id'    => intval($_POST['grade_id']),
+        'is_required' => isset($_POST['is_required']) ? 1 : 0,
+    ], [
+        'id' => intval($_POST['id'])
+    ]);
 
-    wp_send_json_success(['message' => 'Subject group updated']);
+    wp_send_json_success();
 }
+
 
 /**
  * Delete Subject Group (safe)
@@ -84,30 +96,16 @@ add_action('wp_ajax_scgs_delete_subject_group', 'scgs_delete_subject_group');
 function scgs_delete_subject_group() {
     scgs_check_permissions();
 
-    if ( empty($_POST['id']) ) {
+    if (empty($_POST['id'])) {
         wp_send_json_error(['message' => 'Missing ID']);
     }
 
     global $wpdb;
-    $group_id = intval($_POST['id']);
-
-    // Prevent deleting group that has subjects
-    $subjects_table = $wpdb->prefix . 'scgs_subjects';
-    $count = $wpdb->get_var(
-        $wpdb->prepare(
-            "SELECT COUNT(*) FROM $subjects_table WHERE subject_group_id = %d",
-            $group_id
-        )
+    $wpdb->delete(
+        $wpdb->prefix . 'scgs_subject_groups',
+        ['id' => intval($_POST['id'])]
     );
 
-    if ( $count > 0 ) {
-        wp_send_json_error([
-            'message' => 'Cannot delete group that has subjects assigned'
-        ]);
-    }
-
-    $groups_table = $wpdb->prefix . 'scgs_subject_groups';
-    $wpdb->delete($groups_table, ['id' => $group_id]);
-
-    wp_send_json_success(['message' => 'Subject group deleted']);
+    wp_send_json_success();
 }
+

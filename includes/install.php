@@ -30,21 +30,6 @@ function scgs_install_tables() {
     ";
 
     /**
-     * Subject Groups
-     */
-    $table_subject_groups = $wpdb->prefix . 'scgs_subject_groups';
-    $sql_subject_groups = "
-        CREATE TABLE $table_subject_groups (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            name VARCHAR(100) NOT NULL,
-            grade_level VARCHAR(20) NOT NULL,
-            is_required TINYINT(1) DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) $charset_collate;
-    ";
-
-    /**
      * Subjects
      */
     $table_subjects = $wpdb->prefix . 'scgs_subjects';
@@ -134,28 +119,23 @@ function scgs_install_tables() {
         ) $charset_collate;
     ";
 
-    /**
-     * Student Subject Groups (NEW)
-     */
-    $table_student_subject_groups = $wpdb->prefix . 'scgs_student_subject_groups';
-    $sql_student_subject_groups = "
-        CREATE TABLE $table_student_subject_groups (
+        /**
+         * Subject Groups (LINKED TO GRADES)
+         */
+        $table_subject_groups = $wpdb->prefix . 'scgs_subject_groups';
+
+        $sql_subject_groups = "
+        CREATE TABLE $table_subject_groups (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            student_id BIGINT UNSIGNED NOT NULL,
-            subject_group_id BIGINT UNSIGNED NOT NULL,
-            academic_year_id BIGINT UNSIGNED NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            grade_id BIGINT UNSIGNED NOT NULL,
+            is_required TINYINT(1) DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY student_group_year (
-                student_id,
-                subject_group_id,
-                academic_year_id
-            ),
-            KEY student_id (student_id),
-            KEY subject_group_id (subject_group_id),
-            KEY academic_year_id (academic_year_id)
+            KEY grade_id (grade_id)
         ) $charset_collate;
-    ";
+        ";
+
 
     /**
  * Grades
@@ -179,12 +159,13 @@ CREATE TABLE $table_grades (
 
     // ---- Execute in SAFE order ----
     dbDelta($sql_academic_years);
+    dbDelta($sql_grades); 
     dbDelta($sql_subject_groups);
     dbDelta($sql_subjects);
+    dbDelta($sql_criteria);
     dbDelta($sql_classes);
     dbDelta($sql_students);
     dbDelta($sql_parents);
-    dbDelta($sql_criteria);
     dbDelta($sql_student_subject_groups);
-    dbDelta($sql_grades);   
+      
 }
