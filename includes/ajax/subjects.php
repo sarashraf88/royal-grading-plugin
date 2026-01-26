@@ -17,27 +17,33 @@ function scgs_get_subjects() {
     scgs_check_permissions();
     global $wpdb;
 
-$subjects = $wpdb->prefix . 'scgs_subjects';
-$groups   = $wpdb->prefix . 'scgs_subject_groups';
+    $subjects = $wpdb->prefix . 'scgs_subjects';
+    $groups   = $wpdb->prefix . 'scgs_subject_groups';
+    $grades   = $wpdb->prefix . 'scgs_grades';
 
-$data = $wpdb->get_results(
-    "SELECT
-        s.id,
-        s.name,
-        s.max_score,
-        s.subject_group_id,
-        g.name AS group_name,
-        g.grade_level
-     FROM $subjects s
-     LEFT JOIN $groups g
-        ON s.subject_group_id = g.id
-     ORDER BY s.id DESC",
-    ARRAY_A
-);
+    $data = $wpdb->get_results(
+        "
+        SELECT
+            s.id,
+            s.name,
+            s.max_score,
+            s.grade_id,
+            g.name AS grade_name,
+            s.subject_group_id,
+            sg.name AS group_name
+        FROM $subjects s
+        LEFT JOIN $grades g
+            ON s.grade_id = g.id
+        LEFT JOIN $groups sg
+            ON s.subject_group_id = sg.id
+        ORDER BY s.id DESC
+        ",
+        ARRAY_A
+    );
 
-wp_send_json_success($data);
-
+    wp_send_json_success($data);
 }
+
 
 /**
  * Add Subject
@@ -49,19 +55,26 @@ function scgs_add_subject() {
     scgs_check_permissions();
     global $wpdb;
 
-    if ( ! isset($_POST['name'], $_POST['max_score']) ) {
+    if ( ! isset($_POST['name'], $_POST['max_score'], $_POST['grade_id']) ) {
         wp_send_json_error(['message' => 'Missing required fields']);
+    }
+
+    $grade_id = intval($_POST['grade_id']);
+    if ( ! $grade_id ) {
+        wp_send_json_error(['message' => 'Grade is required']);
     }
 
     $table = $wpdb->prefix . 'scgs_subjects';
 
     $data = [
-        'name'      => sanitize_text_field($_POST['name']),
-        'max_score' => intval($_POST['max_score']),
+        'name'              => sanitize_text_field($_POST['name']),
+        'max_score'         => intval($_POST['max_score']),
+        'grade_id'          => $grade_id,
         'subject_group_id' =>
             ( isset($_POST['subject_group_id']) && $_POST['subject_group_id'] !== '' )
-                ? intval($_POST['subject_group_id'])
-                : null
+                 ? intval($_POST['subject_group_id'])
+            : null
+
     ];
 
     $result = $wpdb->insert($table, $data);
@@ -73,6 +86,7 @@ function scgs_add_subject() {
     wp_send_json_success(['message' => 'Subject added']);
 }
 
+
 /**
  * Update Subject
  */
@@ -83,16 +97,22 @@ function scgs_update_subject() {
     scgs_check_permissions();
     global $wpdb;
 
-    if ( ! isset($_POST['id'], $_POST['name'], $_POST['max_score']) ) {
+    if ( ! isset($_POST['id'], $_POST['name'], $_POST['max_score'], $_POST['grade_id']) ) {
         wp_send_json_error(['message' => 'Missing required fields']);
+    }
+
+    $grade_id = intval($_POST['grade_id']);
+    if ( ! $grade_id ) {
+        wp_send_json_error(['message' => 'Grade is required']);
     }
 
     $table = $wpdb->prefix . 'scgs_subjects';
 
     $data = [
-        'name'      => sanitize_text_field($_POST['name']),
-        'max_score' => intval($_POST['max_score']),
-        'subject_group_id' =>
+        'name'              => sanitize_text_field($_POST['name']),
+        'max_score'         => intval($_POST['max_score']),
+        'grade_id'          => $grade_id,
+        'subject_group_id'  =>
             ( isset($_POST['subject_group_id']) && $_POST['subject_group_id'] !== '' )
                 ? intval($_POST['subject_group_id'])
                 : null
@@ -110,6 +130,7 @@ function scgs_update_subject() {
 
     wp_send_json_success(['message' => 'Subject updated']);
 }
+
 
 /**
  * Delete Subject

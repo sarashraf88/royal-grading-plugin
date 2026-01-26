@@ -19,31 +19,40 @@ function scgs_install_tables() {
      */
     $table_academic_years = $wpdb->prefix . 'scgs_academic_years';
     $sql_academic_years = "
-        CREATE TABLE $table_academic_years (
+        CREATE TABLE $table (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(50) NOT NULL,
-            start_date DATE NULL,
-            end_date DATE NULL,
-            is_active TINYINT(1) DEFAULT 0,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
         ) $charset_collate;
     ";
 
-    /**
-     * Subjects
+
+  
+   /**
+     * SUBJECTS TABLE (UPDATED – WITH GRADE SUPPORT)
      */
-    $table_subjects = $wpdb->prefix . 'scgs_subjects';
+    $subjects_table = $wpdb->prefix . 'scgs_subjects';
+
     $sql_subjects = "
-        CREATE TABLE $table_subjects (
+        CREATE TABLE $subjects_table (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            name VARCHAR(255) NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            max_score INT NOT NULL DEFAULT 100,
+            grade_id BIGINT UNSIGNED NOT NULL,
             subject_group_id BIGINT UNSIGNED NULL,
-            max_score INT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
+            KEY grade_id (grade_id),
             KEY subject_group_id (subject_group_id)
         ) $charset_collate;
     ";
+
+  
+
 
     /**
      * Classes

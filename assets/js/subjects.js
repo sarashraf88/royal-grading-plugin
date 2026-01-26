@@ -1,55 +1,112 @@
 jQuery(function ($) {
 
-    // ======================================================
-    // SUBJECTS MODULE
-    // ======================================================
-
     const root = $('#scgs-subjects-root');
     if (!root.length) return;
 
-    console.log('Subjects module loaded');
+    let editingId = null;
+    
+    // --------------------------------------------------
+// Search Subjects (client-side)
+// --------------------------------------------------
+$(document).on('input', '#subject-search', function () {
 
-    let editingSubjectId = null;
+    const keyword = $(this).val().toLowerCase();
+
+    $('#subjects-table tbody tr').each(function () {
+
+        const rowText = $(this).text().toLowerCase();
+
+        if (rowText.includes(keyword)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+});
+
+
 
     // --------------------------------------------------
-    // Render base UI
+    // Render UI
     // --------------------------------------------------
     root.html(`
-        <h2>Add Subject</h2>
+        <h2>Add / Edit Subject</h2>
         <p>
-            <input type="text" id="sub-name" placeholder="Subject Name" />
-            <input type="number" id="sub-max" placeholder="Max Score" />
-            <select id="sub-group"></select>
-            <button type="button" class="button button-primary" id="sub-add">
-                Add
-            </button>
+            <input type="text" id="subject-name" placeholder="Subject Name">
+
+            <select id="subject-grade">
+                <option value="">Select Grade</option>
+            </select>
+
+            <select id="subject-group">
+                <option value="">No Group (Standalone)</option>
+            </select>
+
+            <input type="number" id="subject-max-score" placeholder="Max Score" value="100">
+
+            <button class="button button-primary" id="subject-save">Add</button>
         </p>
-        <hr/>
+        <hr>
+        <p>
+            <input type="text" id="subject-search"
+                placeholder="Search by subject, grade, or group..."
+                style="width:300px;">
+        </p>
         <div id="subjects-table"></div>
     `);
 
     // --------------------------------------------------
-    // Load Subject Groups (dropdown)
+    // Load Grades
+    // --------------------------------------------------
+    function loadGrades() {
+        $.post(royalPlugin.ajax_url, {
+            action: 'scgs_get_grades',
+            nonce: royalPlugin.nonce
+        }, function (res) {
+            if (!res.success) return;
+
+            let html = `<option value="">Select Grade</option>`;
+            res.data.forEach(g => {
+                html += `<option value="${g.id}">${g.name}</option>`;
+            });
+
+            $('#subject-grade').html(html);
+        });
+    }
+
+    // --------------------------------------------------
+    // Load Subject Groups
     // --------------------------------------------------
     function loadGroups() {
         $.post(royalPlugin.ajax_url, {
             action: 'scgs_get_subject_groups',
             nonce: royalPlugin.nonce
         }, function (res) {
+            if (!res.success) return;
 
-            if (!res || !res.success) {
-                $('#sub-group').html('<option value="">No groups found</option>');
-                return;
-            }
-
-            let options = '<option value="">Select Group</option>';
+            let html = `<option value="">No Group (Standalone)</option>`;
             res.data.forEach(g => {
-                options += `<option value="${g.id}">${g.name}</option>`;
+                html += `<option value="${g.id}" data-grade="${g.grade_id}">
+                    ${g.name}
+                </option>`;
             });
 
-            $('#sub-group').html(options);
+            $('#subject-group').html(html);
         });
     }
+
+    // --------------------------------------------------
+    // Auto-set Grade when Group selected
+    // --------------------------------------------------
+    $('#subject-group').on('change', function () {
+        const gradeId = $('option:selected', this).data('grade');
+
+        if (gradeId) {
+            $('#subject-grade').val(gradeId).prop('disabled', true);
+        } else {
+            $('#subject-grade').prop('disabled', false).val('');
+        }
+    });
 
     // --------------------------------------------------
     // Load Subjects
@@ -59,58 +116,48 @@ jQuery(function ($) {
             action: 'scgs_get_subjects',
             nonce: royalPlugin.nonce
         }, function (res) {
-
-            if (!res || !res.success) {
-                $('#subjects-table').html('<p>Error loading subjects</p>');
-                return;
-            }
+            if (!res.success) return;
 
             let html = `
                 <table class="widefat striped">
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Subject</th>
+                            <th>Name</th>
                             <th>Grade</th>
-                            <th>Max Score</th>
                             <th>Group</th>
+                            <th>Max</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
-            if (res.data.length === 0) {
-                html += `<tr><td colspan="5">No subjects found</td></tr>`;
-            } else {
-                res.data.forEach(s => {
-                    html += `
-                        <tr>
-                            <td>${s.id}</td>
-                            <td>${s.name}</td>
-                            <td>${s.grade_level ?? '-'}</td>
-                            <td>${s.max_score}</td>
-                            <td>${s.group_name ?? '-'}</td>
-                            <td>
-                                <button
-                                    class="button sub-edit"
-                                    data-id="${s.id}"
-                                    data-name="${s.name}"
-                                    data-max="${s.max_score}"
-                                    data-group-id="${s.subject_group_id !== null ? s.subject_group_id : ''}">
-                                    Edit
-                                </button>
-
-                                <button
-                                    class="button button-link-delete sub-delete"
-                                    data-id="${s.id}">
-                                    Delete
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            }
+            res.data.forEach(s => {
+                html += `
+                    <tr>
+                        <td>${s.id}</td>
+                        <td>${s.name}</td>
+                        <td>${s.grade_name ?? '-'}</td>
+                        <td>${s.group_name ?? '-'}</td>
+                        <td>${s.max_score}</td>
+                        <td>
+                            <button class="button edit-subject"
+                                data-id="${s.id}"
+                                data-name="${s.name}"
+                                data-max="${s.max_score}"
+                                data-grade="${s.grade_id ?? ''}"
+                                data-group="${s.subject_group_id ?? ''}">
+                                Edit
+                            </button>
+                            <button class="button button-link-delete delete-subject"
+                                data-id="${s.id}">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
 
             html += '</tbody></table>';
             $('#subjects-table').html(html);
@@ -118,97 +165,89 @@ jQuery(function ($) {
     }
 
     // --------------------------------------------------
-    // Initial load
+    // Save (Add / Update)
     // --------------------------------------------------
-    loadGroups();
-    loadSubjects();
+    $('#subject-save').on('click', function () {
 
-    // --------------------------------------------------
-    // Edit Subject
-    // --------------------------------------------------
-    $(document).on('click', '.sub-edit', function () {
+        console.log('SAVE CLICKED — editingId =', editingId);
 
-
-        /*
-        testing 
-        */
-       console.log(
-    'EDIT subject_group_id =',
-    $(this).data('groupId'),
-    'Dropdown options =',
-    $('#sub-group option').length
-);
-
-        //---------------------
-        editingSubjectId = $(this).data('id');
-
-        $('#sub-name').val($(this).data('name'));
-        $('#sub-max').val($(this).data('max'));
-        $('#sub-group').val($(this).data('groupId'));
-
-        $('#sub-add').text('Update');
-    });
-
-    // --------------------------------------------------
-    // Delete Subject
-    // --------------------------------------------------
-    $(document).on('click', '.sub-delete', function () {
-
-        const id = $(this).data('id');
-
-        if (!confirm('Are you sure you want to delete this subject?')) return;
-
-        $.post(royalPlugin.ajax_url, {
-            action: 'scgs_delete_subject',
-            nonce: royalPlugin.nonce,
-            id: id
-        }, function (res) {
-
-            if (!res || !res.success) {
-                alert(res?.data?.message || 'Delete failed');
-                return;
-            }
-
-            loadSubjects();
-        });
-    });
-
-    // --------------------------------------------------
-    // Add / Update Subject
-    // --------------------------------------------------
-    $('#sub-add').on('click', function () {
-
-        const actionName = editingSubjectId
+        const actionName = editingId
             ? 'scgs_update_subject'
             : 'scgs_add_subject';
 
         const payload = {
             action: actionName,
             nonce: royalPlugin.nonce,
-            name: $('#sub-name').val(),
-            max_score: $('#sub-max').val(),
-            subject_group_id: $('#sub-group').val()
+            name: $('#subject-name').val(),
+            max_score: $('#subject-max-score').val(),
+            grade_id: $('#subject-grade').val(),
+            subject_group_id: $('#subject-group').val()
         };
 
-        if (editingSubjectId) {
-            payload.id = editingSubjectId;
+        if (editingId) {
+            payload.id = editingId;
+        }
+
+        if (!payload.name || !payload.max_score || !payload.grade_id) {
+            alert('Please fill all required fields');
+            return;
         }
 
         $.post(royalPlugin.ajax_url, payload, function (res) {
 
             if (!res || !res.success) {
-                alert(res?.data?.message || 'Operation failed');
+                alert(res?.data?.message || 'Save failed');
                 return;
             }
 
-            editingSubjectId = null;
-            $('#sub-name').val('');
-            $('#sub-max').val('');
-            $('#sub-group').val('');
-            $('#sub-add').text('Add');
+            // Reset form
+            editingId = null;
+            $('#subject-name').val('');
+            $('#subject-max-score').val('');
+            $('#subject-grade').prop('disabled', false).val('');
+            $('#subject-group').val('');
+            $('#subject-save').text('Add');
 
             loadSubjects();
         });
     });
+
+    // --------------------------------------------------
+    // Edit
+    // --------------------------------------------------
+    $(document).on('click', '.edit-subject', function () {
+
+        editingId = $(this).data('id');
+
+        $('#subject-name').val($(this).data('name'));
+        $('#subject-max-score').val($(this).data('max'));
+        $('#subject-grade')
+            .val($(this).data('grade'))
+            .prop('disabled', !!$(this).data('group'));
+        $('#subject-group').val($(this).data('group'));
+
+        $('#subject-save').text('Update');
+    });
+
+    // --------------------------------------------------
+    // Delete
+    // --------------------------------------------------
+    $(document).on('click', '.delete-subject', function () {
+
+        if (!confirm('Delete this subject?')) return;
+
+        $.post(royalPlugin.ajax_url, {
+            action: 'scgs_delete_subject',
+            nonce: royalPlugin.nonce,
+            id: $(this).data('id')
+        }, loadSubjects);
+    });
+
+    // --------------------------------------------------
+    // Init
+    // --------------------------------------------------
+    loadGrades();
+    loadGroups();
+    loadSubjects();
 
 });
