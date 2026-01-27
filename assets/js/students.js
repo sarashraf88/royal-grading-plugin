@@ -9,6 +9,7 @@ jQuery(function ($) {
     console.log('Students module loaded');
 
     let editingStudentId = null;
+    let allStudents = [];
 
     // --------------------------------------------------
     // Render UI
@@ -57,6 +58,11 @@ jQuery(function ($) {
     <div id="student-subject-groups-section"></div>
 
     <hr/>
+    <input type="text"
+               id="student-search"
+               placeholder="Search students..."
+               style="width:350px;margin-bottom:10px">
+    
     <div id="students-table"></div>
         
      
@@ -366,6 +372,41 @@ $('#stu-subject-year').on('change', function () {
             loadStudents();
         });
     });
+
+    
+    // --------------------------------------------------
+    // Search (SAFE)
+    // --------------------------------------------------
+    $('#student-search').on('keyup', function () {
+
+        const q = $(this).val().toLowerCase();
+
+        const filtered = allStudents.filter(s =>
+            s.student_code.toLowerCase().includes(q) ||
+            s.first_name.toLowerCase().includes(q) ||
+            s.last_name.toLowerCase().includes(q) ||
+            (s.nationality ?? '').toLowerCase().includes(q) ||
+            (s.student_email ?? '').toLowerCase().includes(q) ||
+            (s.class_name ?? '').toLowerCase().includes(q)
+        );
+
+        renderTable(filtered);
+    });
+
+    // --------------------------------------------------
+    // Reset
+    // --------------------------------------------------
+    function resetForm() {
+        editingId = null;
+        $('#stu-code').val('');
+        $('#stu-first').val('');
+        $('#stu-last').val('');
+        $('#stu-nationality').val('');
+        $('#stu-dob').val('');
+        $('#stu-email').val('');
+        $('#stu-class').val('');
+        $('#stu-save').text('Add');
+    }
 
     // --------------------------------------------------
     // Init

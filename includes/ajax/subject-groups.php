@@ -55,7 +55,7 @@ function scgs_add_subject_group() {
     $wpdb->insert($table, [
         'name'        => sanitize_text_field($_POST['name']),
         'grade_id'    => intval($_POST['grade_id']),
-        'is_required' => isset($_POST['is_required']) ? 1 : 0,
+        'is_required' => intval($_POST['is_required'])
     ]);
 
     wp_send_json_success();
@@ -80,7 +80,7 @@ function scgs_update_subject_group() {
     $wpdb->update($table, [
         'name'        => sanitize_text_field($_POST['name']),
         'grade_id'    => intval($_POST['grade_id']),
-        'is_required' => isset($_POST['is_required']) ? 1 : 0,
+        'is_required' => intval($_POST['is_required'])
     ], [
         'id' => intval($_POST['id'])
     ]);

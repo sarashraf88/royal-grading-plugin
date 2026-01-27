@@ -3,70 +3,58 @@ jQuery(function ($) {
     const root = $('#scgs-subject-groups-root');
     if (!root.length) return;
 
-    console.log('Subject Groups module loaded');
-
-    // ======================================================
-    // STATE
-    // ======================================================
     let editingId = null;
+    let allGroups = [];
 
-    // ======================================================
-    // RENDER UI
-    // ======================================================
+    // --------------------------------------------------
+    // UI
+    // --------------------------------------------------
     root.html(`
-        <h2>Add Subject Group</h2>
-
+        <h2>Add / Edit Subject Group</h2>
         <p>
-            <input type="text" id="group-name" placeholder="Group Name" />
-
+            <input type="text" id="group-name" placeholder="Group Name">
             <select id="group-grade">
-                <option value="">Loading grades...</option>
+                <option value="">Select Grade</option>
             </select>
-
             <label style="margin-left:10px">
-                <input type="checkbox" id="group-required" checked />
-                Required
+                <input type="checkbox" id="group-required"> Required
             </label>
-
-            <button type="button" class="button button-primary" id="group-save">
-                Add
-            </button>
+            <button class="button button-primary" id="group-save">Add</button>
         </p>
 
-        <hr />
+        <hr>
+
+        <input type="text"
+               id="group-search"
+               placeholder="Search subject groups..."
+               style="width:300px;margin-bottom:10px">
 
         <div id="groups-table"></div>
     `);
 
-    // ======================================================
-    // LOAD GRADES (for dropdown)
-    // ======================================================
+    // --------------------------------------------------
+    // Load Grades (for dropdown)
+    // --------------------------------------------------
     function loadGrades() {
         $.post(royalPlugin.ajax_url, {
             action: 'scgs_get_grades',
             nonce: royalPlugin.nonce
         }, function (res) {
 
-            console.log('Grades AJAX response:', res);
+            if (!res || !res.success) return;
 
-            if (!res || !res.success) {
-                $('#group-grade').html('<option value="">Failed to load grades</option>');
-                return;
-            }
-
-            let options = '<option value="">Select Grade</option>';
-
+            let html = `<option value="">Select Grade</option>`;
             res.data.forEach(g => {
-                options += `<option value="${g.id}">${g.name}</option>`;
+                html += `<option value="${g.id}">${g.name}</option>`;
             });
 
-            $('#group-grade').html(options);
+            $('#group-grade').html(html);
         });
     }
 
-    // ======================================================
-    // LOAD SUBJECT GROUPS (TABLE)
-    // ======================================================
+    // --------------------------------------------------
+    // Load Subject Groups
+    // --------------------------------------------------
     function loadGroups() {
         $.post(royalPlugin.ajax_url, {
             action: 'scgs_get_subject_groups',
@@ -74,113 +62,107 @@ jQuery(function ($) {
         }, function (res) {
 
             if (!res || !res.success) {
-                $('#groups-table').html('<p>Error loading subject groups</p>');
+                console.error('Failed to load subject groups');
                 return;
             }
 
-            let html = `
-                <table class="widefat striped">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Grade</th>
-                            <th>Required</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            if (res.data.length === 0) {
-                html += `<tr><td colspan="5">No subject groups found</td></tr>`;
-            } else {
-                res.data.forEach(g => {
-                    html += `
-                        <tr>
-                            <td>${g.id}</td>
-                            <td>${g.name}</td>
-                            <td>${g.grade_name ?? '-'}</td>
-                            <td>${g.is_required == 1 ? 'Yes' : 'No'}</td>
-                            <td>
-                                <button class="button group-edit"
-                                    data-id="${g.id}"
-                                    data-name="${g.name}"
-                                    data-grade="${g.grade_id}"
-                                    data-required="${g.is_required}">
-                                    Edit
-                                </button>
-
-                                <button class="button button-link-delete group-delete"
-                                    data-id="${g.id}">
-                                    Delete
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            }
-
-            html += '</tbody></table>';
-            $('#groups-table').html(html);
+            allGroups = res.data;
+            renderTable(allGroups);
         });
     }
 
-    // ======================================================
-    // INITIAL LOAD
-    // ======================================================
-    loadGrades();
-    loadGroups();
+    // --------------------------------------------------
+    // Render Table
+    // --------------------------------------------------
+    function renderTable(data) {
 
-    // ======================================================
-    // ADD / UPDATE SUBJECT GROUP
-    // ======================================================
-    $(document).on('click', '#group-save', function () {
-
-        const name = $('#group-name').val();
-        const gradeId = $('#group-grade').val();
-
-        if (!name || !gradeId) {
-            alert('Please enter group name and select grade');
+        if (!data.length) {
+            $('#groups-table').html('<p>No subject groups found.</p>');
             return;
         }
 
-        const payload = {
-            action: editingId ? 'scgs_update_subject_group' : 'scgs_add_subject_group',
-            nonce: royalPlugin.nonce,
-            name: name,
-            grade_id: gradeId,
-            is_required: $('#group-required').is(':checked') ? 1 : 0
-        };
+        let html = `
+            <table class="widefat striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Grade</th>
+                        <th>Required</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
 
-        if (editingId) {
-            payload.id = editingId;
+        data.forEach(g => {
+            html += `
+                <tr>
+                    <td>${g.id}</td>
+                    <td>${g.name}</td>
+                    <td>${g.grade_name ?? '-'}</td>
+                    <td>${g.is_required == 1 ? 'Yes' : 'No'}</td>
+                    <td>
+                        <button class="button edit-group"
+                            data-id="${g.id}"
+                            data-name="${g.name}"
+                            data-grade="${g.grade_id}"
+                            data-required="${g.is_required}">
+                            Edit
+                        </button>
+                        <button class="button button-link-delete delete-group"
+                            data-id="${g.id}">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        $('#groups-table').html(html);
+    }
+
+    // --------------------------------------------------
+    // Save (Add / Update)
+    // --------------------------------------------------
+    $('#group-save').on('click', function () {
+
+        const name = $('#group-name').val().trim();
+        const gradeId = $('#group-grade').val();
+
+        if (!name || !gradeId) {
+            alert('Group name and grade are required');
+            return;
         }
 
-        console.log('Saving Subject Group:', payload);
+        const action = editingId
+            ? 'scgs_update_subject_group'
+            : 'scgs_add_subject_group';
 
-        $.post(royalPlugin.ajax_url, payload, function (res) {
+        $.post(royalPlugin.ajax_url, {
+            action,
+            nonce: royalPlugin.nonce,
+            id: editingId,
+            name,
+            grade_id: gradeId,
+            is_required: $('#group-required').is(':checked') ? 1 : 0
+        }, function (res) {
 
             if (!res || !res.success) {
-                alert(res?.data?.message || 'Operation failed');
+                alert(res?.data?.message || 'Save failed');
                 return;
             }
 
-            // Reset form
-            editingId = null;
-            $('#group-name').val('');
-            $('#group-grade').val('');
-            $('#group-required').prop('checked', true);
-            $('#group-save').text('Add');
-
+            resetForm();
             loadGroups();
         });
     });
 
-    // ======================================================
-    // EDIT SUBJECT GROUP
-    // ======================================================
-    $(document).on('click', '.group-edit', function () {
+    // --------------------------------------------------
+    // Edit
+    // --------------------------------------------------
+    $(document).on('click', '.edit-group', function () {
 
         editingId = $(this).data('id');
 
@@ -191,10 +173,10 @@ jQuery(function ($) {
         $('#group-save').text('Update');
     });
 
-    // ======================================================
-    // DELETE SUBJECT GROUP
-    // ======================================================
-    $(document).on('click', '.group-delete', function () {
+    // --------------------------------------------------
+    // Delete
+    // --------------------------------------------------
+    $(document).on('click', '.delete-group', function () {
 
         if (!confirm('Delete this subject group?')) return;
 
@@ -202,15 +184,42 @@ jQuery(function ($) {
             action: 'scgs_delete_subject_group',
             nonce: royalPlugin.nonce,
             id: $(this).data('id')
-        }, function (res) {
-
-            if (!res || !res.success) {
-                alert(res?.data?.message || 'Delete failed');
-                return;
-            }
-
+        }, function () {
             loadGroups();
         });
     });
+
+    // --------------------------------------------------
+    // Search (SAFE)
+    // --------------------------------------------------
+    $('#group-search').on('keyup', function () {
+
+        const q = $(this).val().toLowerCase();
+
+        const filtered = allGroups.filter(g =>
+            g.name.toLowerCase().includes(q) ||
+            (g.grade_name ?? '').toLowerCase().includes(q) ||
+            String(g.id).includes(q)
+        );
+
+        renderTable(filtered);
+    });
+
+    // --------------------------------------------------
+    // Reset
+    // --------------------------------------------------
+    function resetForm() {
+        editingId = null;
+        $('#group-name').val('');
+        $('#group-grade').val('');
+        $('#group-required').prop('checked', false);
+        $('#group-save').text('Add');
+    }
+
+    // --------------------------------------------------
+    // Init
+    // --------------------------------------------------
+    loadGrades();
+    loadGroups();
 
 });
