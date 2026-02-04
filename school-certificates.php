@@ -47,7 +47,7 @@ wp_localize_script(
     'royal-admin-js', // ✅ MUST match enqueue handle
     'royalPlugin',    // ✅ JS object used in admin.js
     [
-        'ajax_url' => admin_url('admin-ajax.php'),
+        'ajax_url' => admin_url('admin-ajax.php', 'https'),
         'nonce'    => wp_create_nonce('scgs_nonce'),
         'modules'  => [
             'grades'           => plugin_dir_url(__FILE__) . 'assets/js/grades.js',

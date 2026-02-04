@@ -1,274 +1,184 @@
 jQuery(function ($) {
 
-    $('#stu-class option:selected').data('grade')
-
-
     const root = $('#scgs-students-root');
     if (!root.length) return;
 
-    console.log('Students module loaded');
+    const Students = {
 
-    let editingStudentId = null;
-    let allStudents = [];
+        state: {
+            students: [],
+            editingId: null
+        },
 
-    // --------------------------------------------------
-    // Render UI
-    // --------------------------------------------------
-    root.html(`
-        
-        <p>
-        <input type="file" id="stu-import-file" accept=".csv" />
-        <button class="button" id="stu-import">Import CSV</button>
-        <button class="button" id="stu-export">Export CSV</button>
-    </p>
+        init() {
+            this.renderLayout();
+            this.bindEvents();
+            this.loadClasses();
+            this.loadStudents();
+        },
 
-    <h2>Add Student</h2>
+        // --------------------------------------------------
+        // UI
+        // --------------------------------------------------
+        renderLayout() {
+            root.html(`
+                <p>
+                    <input type="file" id="stu-import-file" accept=".csv" />
+                    <button class="button" id="stu-import">Import CSV</button>
+                    <button class="button" id="stu-export">Export All</button>
+                    <button class="button" id="stu-export-selected">Export Selected</button>
+                </p>
 
-    <p>
-        <input type="text" id="stu-code" placeholder="Student Code" />
-        <input type="text" id="stu-first" placeholder="First Name" />
-        <input type="text" id="stu-last" placeholder="Last Name" />
-        <input type="text" id="stu-nationality" placeholder="Nationality" />
-        <input type="date" id="stu-dob" />
-        <input type="email" id="stu-email" placeholder="Student Email" />
-        <select id="stu-class"></select>
+                <h2>Add / Edit Student</h2>
 
-        <button class="button button-primary" id="stu-add">
-            Add
-        </button>
-    </p>
+                <p>
+                    <input type="text" id="stu-code" placeholder="Student Code" />
+                    <input type="text" id="stu-first" placeholder="First Name" />
+                    <input type="text" id="stu-last" placeholder="Last Name" />
+                    <input type="text" id="stu-nationality" placeholder="Nationality" />
+                    <input type="date" id="stu-dob" />
+                    <input type="email" id="stu-email" placeholder="Student Email" />
+                    <select id="stu-class"></select>
+                    <button class="button button-primary" id="stu-save">Add</button>
+                </p>
 
-   <hr>
-   <p>
-    <label><strong>Academic Year:</strong></label>
-    <select id="stu-subject-year"></select>
-</p>
+                <hr>
 
-<h3>Student Subject Groups</h3>
+                <button class="button button-secondary" id="stu-bulk-delete">
+                    Delete Selected
+                </button>
 
-<div id="stu-subject-groups">
-    <p>Please select an academic year.</p>
-</div>
+                <button class="button" id="stu-assign-group">
+                    Assign Subject Group
+                </button>
 
-<p>
-    <button class="button button-primary" id="stu-save-subject-groups">
-        Save Subject Groups
-    </button>
-</p>
-    <div id="student-subject-groups-section"></div>
+                <input
+                    type="text"
+                    id="student-search"
+                    placeholder="Search students..."
+                    style="width:350px;margin-left:10px"
+                >
 
-    <hr/>
-    <input type="text"
-               id="student-search"
-               placeholder="Search students..."
-               style="width:350px;margin-bottom:10px">
-    
-    <div id="students-table"></div>
-        
-     
-    `);
-// ======================================================
-
-
-function loadAcademicYears() {
-
-    $.post(royalPlugin.ajax_url, {
-        action: 'scgs_get_academic_years',
-        nonce: royalPlugin.nonce
-    }, function (res) {
-
-        if (!res || !res.success) return;
-
-        let options = '';
-        let activeYearId = null;
-
-        res.data.forEach(y => {
-            if (y.is_active == 1 && !activeYearId) {
-                activeYearId = y.id;
-            }
-
-            options += `
-                <option value="${y.id}">
-                    ${y.name}${y.is_active == 1 ? ' (Active)' : ''}
-                </option>
-            `;
-        });
-
-        $('#stu-subject-year').html(options);
-
-        // ✅ DEFAULT = ACTIVE YEAR
-        if (activeYearId) {
-            $('#stu-subject-year').val(activeYearId);
-        }
-
-        // Load data using default year
-        loadStudents();
-    });
-}
-loadAcademicYears();
+                <div id="stu-subject-groups" style="margin-top:10px"></div>
 
 
 
-    function loadSubjectsForGrade() {
-
-    const selectedClass = $('#stu-class option:selected');
-    const gradeLevel = selectedClass.data('grade');
-
-    if (!gradeLevel) {
-        $('#stu-subject-groups').html('<p>Please select a class.</p>');
-        return;
-    }
-
-        $.post(royalPlugin.ajax_url, {
-            action: 'scgs_get_subjects_by_grade',
-            nonce: royalPlugin.nonce,
-            grade_level: gradeLevel
-        }, function (res){
-
-        if (!res || !res.success) {
-            $('#stu-subject-groups').html('<p>Error loading subjects.</p>');
-            return;
-        }
-
-        let html = '';
-        let currentGroup = null;
-
-        res.data.forEach(row => {
-
-            if (currentGroup !== row.group_name) {
-                currentGroup = row.group_name;
-                html += `<h4 style="margin-top:12px">${currentGroup}</h4>`;
-            }
-
-            html += `
-                <label style="display:block;margin-left:15px">
-                    <input type="checkbox"
-                        class="stu-subject"
-                        data-group="${row.group_id}"
-                        value="${row.subject_id}">
-                    ${row.subject_name}
-                </label>
-            `;
-        });
-
-        $('#stu-subject-groups').html(html);
-
-        // restore selections if editing
-        //loadStudentSubjects();
-    });
-}
+                <div id="students-table" style="margin-top:10px"></div>
 
 
+            `);
+        },
 
-$('#stu-class').on('change', function () {
-    loadSubjectsForGrade();
-});
+        // --------------------------------------------------
+        // Data Loaders
+        // --------------------------------------------------
+        loadClasses() {
+            $.post(royalPlugin.ajax_url, {
+                action: 'scgs_get_classes',
+                nonce: royalPlugin.nonce
+            }, res => {
 
-
-// ======================================================
-// Load Student Subject Groups (EDIT MODE)
-// ======================================================
-function loadStudentSubjectGroups() {
-
-    // Only run in edit mode
-    if (!editingStudentId) return;
-
-    const academicYearId = $('#stu-subject-year').val();
-    if (!academicYearId) return;
-
-    $.post(royalPlugin.ajax_url, {
-        action: 'scgs_get_student_subject_groups',
-        student_id: editingStudentId,
-        academic_year_id: academicYearId
-    }, function (res) {
-
-        if (!res || !res.success) return;
-
-        const selectedGroups = res.data.map(String);
-
-        $('.stu-subject-group').each(function () {
-            if (selectedGroups.includes($(this).val())) {
-                $(this).prop('checked', true);
-            }
-        });
-    });
-}
-$('#stu-subject-year').on('change', function () {
-    loadStudentSubjectGroups();
-});
-
-
-
-    // --------------------------------------------------
-    // Load Classes
-    // --------------------------------------------------
-    function loadClasses() {
-        $.post(royalPlugin.ajax_url, {
-            action: 'scgs_get_classes',
-            nonce: royalPlugin.nonce
-        }, function (res) {
-
-            if (!res || !res.success) {
-                $('#stu-class').html('<option value="">No classes found</option>');
-                return;
-            }
-
-            let options = '<option value="">Select Class</option>';
-            res.data.forEach(c => {
-                options += `
-                    <option value="${c.id}" data-grade="${c.grade_level}">
-                        ${c.name} (${c.grade_level})
-                    </option>
-                    `;
-
+                let options = '<option value="">Select Class</option>';
+                if (res?.success) {
+                    res.data.forEach(c => {
+                        options += `<option value="${c.id}">${c.name}</option>`;
+                    });
+                }
+                $('#stu-class').html(options);
             });
+        },
 
-            $('#stu-class').html(options);
-        });
-    }
+        loadSubjectGroupsForClass(classId) {
 
-    // --------------------------------------------------
-    // Load Students
-    // --------------------------------------------------
-    function loadStudents() {
-        $.post(royalPlugin.ajax_url, {
-            action: 'scgs_get_students',
-            nonce: royalPlugin.nonce
-        }, function (res) {
+                if (!classId) {
+                    $('#stu-subject-groups').html('');
+                    return;
+                }
 
-            if (!res || !res.success) {
-                $('#students-table').html('<p>Error loading students</p>');
-                return;
-            }
+                // Find grade from selected class
+                const selectedClass = $('#stu-class option:selected');
+                const gradeId = selectedClass.data('grade');
+
+                if (!gradeId) return;
+
+                $.post(royalPlugin.ajax_url, {
+                    action: 'scgs_get_subject_groups_by_grade',
+                    nonce: royalPlugin.nonce,
+                    grade_id: gradeId
+                }, res => {
+
+                    if (!res?.success || !res.data.length) {
+                        $('#stu-subject-groups').html('<em>No subject groups</em>');
+                        return;
+                    }
+
+                    let html = '<strong>Subject Group:</strong><br>';
+
+                    res.data.forEach(g => {
+                        html += `
+                            <label style="display:block;margin-left:10px">
+                                <input type="radio" name="stu_subject_group" value="${g.id}">
+                                ${g.name}
+                            </label>
+                        `;
+                    });
+
+                    $('#stu-subject-groups').html(html);
+                            });
+                        },
+
+
+        loadStudents() {
+            $.post(royalPlugin.ajax_url, {
+                action: 'scgs_get_students',
+                nonce: royalPlugin.nonce
+            }, res => {
+
+                if (!res?.success) {
+                    $('#students-table').html('<p>Error loading students</p>');
+                    return;
+                }
+
+                this.state.students = res.data;
+                this.renderTable(res.data);
+            });
+        },
+
+        
+
+        // --------------------------------------------------
+        // Table
+        // --------------------------------------------------
+        renderTable(data) {
 
             let html = `
                 <table class="widefat striped">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="stu-select-all"></th>
                             <th>Code</th>
                             <th>Name</th>
-                            <th>Nationality</th>
                             <th>Email</th>
-                            <th>DOB</th>
                             <th>Class</th>
+                            <th>Date of birth</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
-            if (res.data.length === 0) {
-                html += `<tr><td colspan="7">No students found</td></tr>`;
+            if (!data.length) {
+                html += `<tr><td colspan="6">No students found</td></tr>`;
             } else {
-                res.data.forEach(s => {
+                data.forEach(s => {
                     html += `
                         <tr>
+                            <td><input type="checkbox" class="stu-select" value="${s.id}"></td>
                             <td>${s.student_code}</td>
                             <td>${s.first_name} ${s.last_name}</td>
-                            <td>${s.nationality ?? '-'}</td>
-                            <td>${s.student_email ?? '-'}</td>
-                            <td>${s.date_of_birth ?? '-'}</td>
+                            <td>${s.student_email || '-'}</td>
                             <td>${s.class_name}</td>
+                            <td>${s.date_of_birth}</td>
                             <td>
                                 <button
                                     class="button stu-edit"
@@ -276,9 +186,9 @@ $('#stu-subject-year').on('change', function () {
                                     data-code="${s.student_code}"
                                     data-first="${s.first_name}"
                                     data-last="${s.last_name}"
-                                    data-nationality="${s.nationality ?? ''}"
-                                    data-email="${s.student_email ?? ''}"
-                                    data-dob="${s.date_of_birth ?? ''}"
+                                    data-nationality="${s.nationality || ''}"
+                                    data-email="${s.student_email || ''}"
+                                    data-dob="${s.date_of_birth || ''}"
                                     data-class-id="${s.class_id}">
                                     Edit
                                 </button>
@@ -295,169 +205,210 @@ $('#stu-subject-year').on('change', function () {
 
             html += '</tbody></table>';
             $('#students-table').html(html);
-        });
-    }
+        },
 
-    // --------------------------------------------------
-    // Edit Student
-    // --------------------------------------------------
-    $(document).on('click', '.stu-edit', function () {
+        // --------------------------------------------------
+        // Helpers
+        // --------------------------------------------------
+        getSelectedIds() {
+            return $('.stu-select:checked').map(function () {
+                return $(this).val();
+            }).get();
+        },
 
-        editingStudentId = $(this).data('id');
+        // --------------------------------------------------
+        // Events
+        // --------------------------------------------------
+        bindEvents() {
 
-        $('#stu-code').val($(this).data('code'));
-        $('#stu-first').val($(this).data('first'));
-        $('#stu-last').val($(this).data('last'));
-        $('#stu-nationality').val($(this).data('nationality'));
-        $('#stu-email').val($(this).data('email'));
-        $('#stu-dob').val($(this).data('dob'));
-        $('#stu-class').val($(this).data('classId'));
+            $('#stu-class').on('change', e => {
+                this.loadSubjectGroupsForClass(e.target.value);
+            });
 
-        $('#stu-add').text('Update');
-    });
 
-    // --------------------------------------------------
-    // Add / Update Student
-    // --------------------------------------------------
-    $('#stu-add').on('click', function () {
+            // Select all
+            $(document).on('change', '#stu-select-all', function () {
+                $('.stu-select').prop('checked', this.checked);
+            });
 
-        const actionName = editingStudentId
-            ? 'scgs_update_student'
-            : 'scgs_add_student';
+            // Search
+            $('#student-search').on('keyup', e => {
+                const q = e.target.value.toLowerCase();
+                const filtered = this.state.students.filter(s =>
+                    s.student_code.toLowerCase().includes(q) ||
+                    s.first_name.toLowerCase().includes(q) ||
+                    s.last_name.toLowerCase().includes(q) ||
+                    (s.student_email || '').toLowerCase().includes(q)
+                );
+                this.renderTable(filtered);
+            });
 
-        const payload = {
-            action: actionName,
-            nonce: royalPlugin.nonce,
-            student_code: $('#stu-code').val(),
-            first_name: $('#stu-first').val(),
-            last_name: $('#stu-last').val(),
-            nationality: $('#stu-nationality').val(),
-            student_email: $('#stu-email').val(),
-            date_of_birth: $('#stu-dob').val(),
-            class_id: $('#stu-class').val()
-        };
+            // Save
+            $('#stu-save').on('click', () => this.saveStudent());
 
-        if (editingStudentId) {
-            payload.id = editingStudentId;
+            // Edit
+            $(document).on('click', '.stu-edit', e => this.populateForm($(e.currentTarget)));
+
+            // Delete single
+            $(document).on('click', '.stu-delete', e =>
+                this.deleteStudent($(e.currentTarget).data('id'))
+            );
+
+            // Bulk delete
+            $('#stu-bulk-delete').on('click', () => this.bulkDelete());
+
+            // Export
+            $('#stu-export').on('click', () => {
+                window.location.href =
+                    royalPlugin.ajax_url +
+                    '?action=scgs_export_students&nonce=' +
+                    royalPlugin.nonce;
+            });
+
+            // Export selected
+            $('#stu-export-selected').on('click', () => this.exportSelected());
+
+            // Import
+            $('#stu-import').on('click', () => this.importCSV());
+
+            // Assign subject group
+            $('#stu-assign-group').on('click', () => this.assignGroup());
+        },
+
+        // --------------------------------------------------
+        // Actions
+        // --------------------------------------------------
+        populateForm(btn) {
+            this.state.editingId = btn.data('id');
+            $('#stu-code').val(btn.data('code'));
+            $('#stu-first').val(btn.data('first'));
+            $('#stu-last').val(btn.data('last'));
+            $('#stu-nationality').val(btn.data('nationality'));
+            $('#stu-email').val(btn.data('email'));
+            $('#stu-dob').val(btn.data('dob'));
+            $('#stu-class').val(btn.data('class-id'));
+            $('#stu-save').text('Update');
+        },
+
+                saveStudent() {
+            $.post(royalPlugin.ajax_url, {
+                action: this.state.editingId ? 'scgs_update_student' : 'scgs_add_student',
+                nonce: royalPlugin.nonce,
+                id: this.state.editingId,
+                student_code: $('#stu-code').val(),
+                first_name: $('#stu-first').val(),
+                last_name: $('#stu-last').val(),
+                nationality: $('#stu-nationality').val(),
+                student_email: $('#stu-email').val(),
+                date_of_birth: $('#stu-dob').val(),
+                class_id: $('#stu-class').val()
+            }, res => {
+                if (!res?.success) {
+                    alert(res?.data?.message || 'Save failed');
+                    return;
+                }
+                this.resetForm();
+                this.loadStudents();
+            });
         }
+,
 
-        $.post(royalPlugin.ajax_url, payload, function (res) {
+        deleteStudent(id) {
+            if (!confirm('Delete this student?')) return;
 
-            if (!res || !res.success) {
-                alert(res?.data?.message || 'Operation failed');
-                return;
-            }
+            $.post(royalPlugin.ajax_url, {
+                action: 'scgs_delete_student',
+                nonce: royalPlugin.nonce,
+                id
+            }, () => this.loadStudents());
+        },
 
-            editingStudentId = null;
+        bulkDelete() {
+            const ids = this.getSelectedIds();
+            if (!ids.length) return alert('No students selected');
+
+            if (!confirm(`Delete ${ids.length} students?`)) return;
+
+            $.post(royalPlugin.ajax_url, {
+                action: 'scgs_bulk_delete_students',
+                nonce: royalPlugin.nonce,
+                ids
+            }, res => {
+                if (!res?.success) {
+                    alert(res?.data?.message || 'Bulk delete failed');
+                    return;
+                }
+                this.loadStudents();
+            });
+        },
+
+        exportSelected() {
+            const ids = this.getSelectedIds();
+            if (!ids.length) return alert('No students selected');
+
+            window.location.href =
+                royalPlugin.ajax_url +
+                '?action=scgs_export_students&ids=' +
+                ids.join(',') +
+                '&nonce=' +
+                royalPlugin.nonce;
+        },
+
+        assignGroup() {
+            const ids = this.getSelectedIds();
+            if (!ids.length) return alert('No students selected');
+
+            const groupId = prompt('Enter Subject Group ID:');
+            if (!groupId) return;
+
+            $.post(royalPlugin.ajax_url, {
+                action: 'scgs_assign_students_group',
+                nonce: royalPlugin.nonce,
+                ids,
+                group_id: groupId
+            }, res => {
+                if (!res?.success) {
+                    alert(res?.data?.message || 'Assignment failed');
+                    return;
+                }
+                alert('Students assigned');
+            });
+        },
+
+        importCSV() {
+            const file = $('#stu-import-file')[0].files[0];
+            if (!file) return alert('Select a CSV file');
+
+            const fd = new FormData();
+            fd.append('action', 'scgs_import_students');
+            fd.append('nonce', royalPlugin.nonce);
+            fd.append('file', file);
+
+            $.ajax({
+                url: royalPlugin.ajax_url,
+                type: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false,
+                success: res => {
+                    if (!res?.success) {
+                        alert(res?.data?.message || 'Import failed');
+                        return;
+                    }
+                    alert(res.data.message);
+                    $('#stu-import-file').val('');
+                    this.loadStudents();
+                }
+            });
+        },
+
+        resetForm() {
+            this.state.editingId = null;
             $('#stu-code, #stu-first, #stu-last, #stu-nationality, #stu-email, #stu-dob').val('');
             $('#stu-class').val('');
-            $('#stu-add').text('Add');
-
-            loadStudents();
-        });
-    });
-
-    // --------------------------------------------------
-    // Delete Student
-    // --------------------------------------------------
-    $(document).on('click', '.stu-delete', function () {
-
-        if (!confirm('Delete this student?')) return;
-
-        $.post(royalPlugin.ajax_url, {
-            action: 'scgs_delete_student',
-            nonce: royalPlugin.nonce,
-            id: $(this).data('id')
-        }, function () {
-            loadStudents();
-        });
-    });
-
-    
-    // --------------------------------------------------
-    // Search (SAFE)
-    // --------------------------------------------------
-    $('#student-search').on('keyup', function () {
-
-        const q = $(this).val().toLowerCase();
-
-        const filtered = allStudents.filter(s =>
-            s.student_code.toLowerCase().includes(q) ||
-            s.first_name.toLowerCase().includes(q) ||
-            s.last_name.toLowerCase().includes(q) ||
-            (s.nationality ?? '').toLowerCase().includes(q) ||
-            (s.student_email ?? '').toLowerCase().includes(q) ||
-            (s.class_name ?? '').toLowerCase().includes(q)
-        );
-
-        renderTable(filtered);
-    });
-
-    // --------------------------------------------------
-    // Reset
-    // --------------------------------------------------
-    function resetForm() {
-        editingId = null;
-        $('#stu-code').val('');
-        $('#stu-first').val('');
-        $('#stu-last').val('');
-        $('#stu-nationality').val('');
-        $('#stu-dob').val('');
-        $('#stu-email').val('');
-        $('#stu-class').val('');
-        $('#stu-save').text('Add');
-    }
-
-    // --------------------------------------------------
-    // Init
-    // --------------------------------------------------
-    loadClasses();
-    loadStudents();
-
-    // --------------------------------------------------
-// Export Students
-// --------------------------------------------------
-$('#stu-export').on('click', function () {
-    window.location.href =
-        royalPlugin.ajax_url +
-        '?action=scgs_export_students&nonce=' +
-        royalPlugin.nonce;
-});
-
-// --------------------------------------------------
-// Import Students
-// --------------------------------------------------
-$('#stu-import').on('click', function () {
-
-    const fileInput = $('#stu-import-file')[0];
-    if (!fileInput.files.length) {
-        alert('Please select a CSV file');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('action', 'scgs_import_students');
-    formData.append('nonce', royalPlugin.nonce);
-    formData.append('file', fileInput.files[0]);
-
-    $.ajax({
-        url: royalPlugin.ajax_url,
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function (res) {
-            if (!res || !res.success) {
-                alert(res?.data?.message || 'Import failed');
-                return;
-            }
-
-            alert(res.data.message);
-            $('#stu-import-file').val('');
-            loadStudents();
+            $('#stu-save').text('Add');
         }
-    });
-});
+    };
 
-
+    Students.init();
 });

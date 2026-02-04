@@ -98,51 +98,98 @@ function scgs_get_students_with_subjects() {
  * ADD STUDENT
  * --------------------------------------------------
  */
+
 add_action('wp_ajax_scgs_add_student', 'scgs_add_student');
 function scgs_add_student() {
 
+    // --------------------------------------------------
+    // Security
+    // --------------------------------------------------
     check_ajax_referer('scgs_nonce', 'nonce');
     scgs_check_permissions();
+
     global $wpdb;
 
-    if (
-        empty($_POST['student_code']) ||
-        empty($_POST['first_name']) ||
-        empty($_POST['last_name']) ||
-        empty($_POST['class_id'])
-    ) {
+    $students_table = $wpdb->prefix . 'scgs_students';
+
+    // --------------------------------------------------
+    // Validate required fields
+    // --------------------------------------------------
+    $student_code  = trim($_POST['student_code'] ?? '');
+    $first_name    = trim($_POST['first_name'] ?? '');
+    $last_name     = trim($_POST['last_name'] ?? '');
+    $class_id      = intval($_POST['class_id'] ?? 0);
+
+    if (!$student_code || !$first_name || !$last_name || !$class_id) {
         wp_send_json_error(['message' => 'Missing required fields']);
     }
 
-    $table = $wpdb->prefix . 'scgs_students';
+    // --------------------------------------------------
+    // Optional fields
+    // --------------------------------------------------
+    $nationality   = trim($_POST['nationality'] ?? '');
+    $student_email = trim($_POST['student_email'] ?? '');
 
-    $data = [
-        'student_code'  => sanitize_text_field($_POST['student_code']),
-        'first_name'    => sanitize_text_field($_POST['first_name']),
-        'last_name'     => sanitize_text_field($_POST['last_name']),
-        'nationality'   => ! empty($_POST['nationality'])
-            ? sanitize_text_field($_POST['nationality'])
-            : null,
-        'date_of_birth' => ! empty($_POST['date_of_birth'])
-            ? sanitize_text_field($_POST['date_of_birth'])
-            : null,
-        'student_email' => ! empty($_POST['student_email'])
-            ? sanitize_email($_POST['student_email'])
-            : null,
-        'class_id'      => intval($_POST['class_id']),
-    ];
+    // --------------------------------------------------
+    // Date of Birth (SAFE parsing)
+    // --------------------------------------------------
+    $dob = null;
+    $raw_dob = trim($_POST['date_of_birth'] ?? '');
 
-    $result = $wpdb->insert($table, $data);
-
-    if ($result === false) {
-        wp_send_json_error(['message' => $wpdb->last_error]);
+    if ($raw_dob !== '') {
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d'] as $fmt) {
+            $dt = DateTime::createFromFormat($fmt, $raw_dob);
+            if ($dt !== false) {
+                $dob = $dt->format('Y-m-d');
+                break;
+            }
+        }
     }
 
+    // --------------------------------------------------
+    // Insert student
+    // --------------------------------------------------
+    $inserted = $wpdb->insert(
+        $students_table,
+        [
+            'student_code'   => $student_code,
+            'first_name'     => $first_name,
+            'last_name'      => $last_name,
+            'nationality'    => $nationality ?: null,
+            'date_of_birth'  => $dob,
+            'student_email'  => $student_email ?: null,
+            'class_id'       => $class_id,
+        ],
+        ['%s','%s','%s','%s','%s','%s','%d']
+    );
+
+    if ($inserted === false) {
+        wp_send_json_error([
+            'message' => 'Failed to add student. Code or email may already exist.'
+        ]);
+    }
+
+    $student_id = $wpdb->insert_id;
+
+    // --------------------------------------------------
+    // Save subject group (if provided)
+    // --------------------------------------------------
+    if (!empty($_POST['subject_group_id'])) {
+        scgs_save_student_subject_group(
+            $student_id,
+            intval($_POST['subject_group_id'])
+        );
+    }
+
+    // --------------------------------------------------
+    // Done
+    // --------------------------------------------------
     wp_send_json_success([
-        'message'    => 'Student added',
-        'student_id' => $wpdb->insert_id
+        'message'    => 'Student added successfully',
+        'student_id' => $student_id
     ]);
 }
+
 
 /**
  * --------------------------------------------------
@@ -217,4 +264,131 @@ function scgs_delete_student() {
     $wpdb->delete($table, ['id' => intval($_POST['id'])]);
 
     wp_send_json_success(['message' => 'Student deleted']);
+}
+/**
+ * 
+ * Delete bulk students
+ */
+
+add_action('wp_ajax_scgs_bulk_delete_students', function () {
+
+    check_ajax_referer('scgs_nonce', 'nonce');
+    scgs_check_permissions();
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'scgs_students';
+
+    $ids = $_POST['ids'] ?? [];
+    if (!is_array($ids) || empty($ids)) {
+        wp_send_json_error(['message' => 'No students selected']);
+    }
+
+    $ids = array_map('intval', $ids);
+    $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+
+    $wpdb->query(
+        $wpdb->prepare("DELETE FROM $table WHERE id IN ($placeholders)", $ids)
+    );
+
+    wp_send_json_success();
+});
+
+
+/**
+ * assign subject group
+ */
+
+add_action('wp_ajax_scgs_assign_students_group', function () {
+
+    check_ajax_referer('scgs_nonce', 'nonce');
+    scgs_check_permissions();
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'scgs_student_subject_groups';
+
+    $ids = $_POST['ids'] ?? [];
+    $group_id = intval($_POST['group_id'] ?? 0);
+
+    if (!$group_id || !is_array($ids)) {
+        wp_send_json_error(['message' => 'Invalid data']);
+    }
+
+    foreach ($ids as $student_id) {
+        $wpdb->insert($table, [
+            'student_id' => intval($student_id),
+            'subject_group_id' => $group_id
+        ]);
+    }
+
+    wp_send_json_success();
+});
+/**
+ * Student subejct group selection
+*/
+add_action('wp_ajax_scgs_get_subject_groups_by_grade', function () {
+
+    check_ajax_referer('scgs_nonce', 'nonce');
+    scgs_check_permissions();
+
+    global $wpdb;
+    $groups = $wpdb->prefix . 'scgs_subject_groups';
+
+    $grade_id = intval($_POST['grade_id'] ?? 0);
+    if (!$grade_id) {
+        wp_send_json_error(['message' => 'Invalid grade']);
+    }
+
+    $rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT id, name FROM $groups WHERE grade_id = %d ORDER BY name",
+            $grade_id
+        ),
+        ARRAY_A
+    );
+
+    wp_send_json_success($rows);
+});
+add_action('wp_ajax_scgs_assign_students_subject_group', function () {
+
+    check_ajax_referer('scgs_nonce', 'nonce');
+    scgs_check_permissions();
+
+    global $wpdb;
+
+    $table = $wpdb->prefix . 'scgs_student_subject_groups';
+
+    $student_ids = $_POST['student_ids'] ?? [];
+    $group_id    = intval($_POST['group_id'] ?? 0);
+    $year_id     = intval($_POST['academic_year_id'] ?? 0);
+
+    if (!$group_id || !$year_id || !is_array($student_ids)) {
+        wp_send_json_error(['message' => 'Invalid data']);
+    }
+
+    foreach ($student_ids as $student_id) {
+        $student_id = intval($student_id);
+
+        // Remove previous assignment for this year
+        $wpdb->delete($table, [
+            'student_id' => $student_id,
+            'academic_year_id' => $year_id
+        ]);
+
+        // Insert new assignment
+        $wpdb->insert($table, [
+            'student_id' => $student_id,
+            'subject_group_id' => $group_id,
+            'academic_year_id' => $year_id
+        ]);
+    }
+
+    wp_send_json_success();
+});
+function scgs_get_active_academic_year_id() {
+    global $wpdb;
+    $table = $wpdb->prefix . 'scgs_academic_years';
+
+    return $wpdb->get_var(
+        "SELECT id FROM $table WHERE is_active = 1 LIMIT 1"
+    );
 }

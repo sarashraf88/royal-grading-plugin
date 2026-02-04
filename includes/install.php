@@ -62,8 +62,8 @@ function scgs_install_tables() {
         CREATE TABLE $table_classes (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(50) NOT NULL,
-            grade_level VARCHAR(20) NOT NULL,
-            academic_year VARCHAR(20) NOT NULL,
+            grade_id VARCHAR(20) NOT NULL,
+            academic_year_id VARCHAR(20) NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
         ) $charset_collate;
